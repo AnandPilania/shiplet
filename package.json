@@ -1,0 +1,49 @@
+{
+    "name": "shiplet",
+    "version": "0.1.1",
+    "description": "Docker/Podman-powered dev environment CLI for Node.js — with release pipeline, snapshots, health dashboard, and more.",
+    "main": "src/index.js",
+    "bin": {
+        "shiplet": "src/cli.js"
+    },
+    "scripts": {
+        "test": "node src/cli.js --help"
+    },
+    "keywords": [
+        "docker",
+        "podman",
+        "nodejs",
+        "development",
+        "environment",
+        "cli",
+        "devtools",
+        "sail",
+        "compose",
+        "containers",
+        "podman",
+        "release",
+        "changelog",
+        "snapshots",
+        "semver"
+    ],
+    "author": {
+        "name": "Anand Pilania",
+        "email": "pilaniaanand@gmail.com"
+    },
+    "license": "MIT",
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/anandpilania/shiplet"
+    },
+    "homepage": "https://github.com/anandpilania/shiplet#readme",
+    "dependencies": {
+        "chalk": "^4.1.2",
+        "commander": "^11.1.0",
+        "inquirer": "^8.2.6",
+        "ora": "^5.4.1",
+        "yaml": "^2.3.4"
+    },
+    "engines": {
+        "node": ">=16.0.0"
+    }
+}

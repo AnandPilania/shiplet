@@ -1,0 +1,5 @@
+.shiplet/
+*.test.js
+*.spec.js
+.github/
+coverage/
