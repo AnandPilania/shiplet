@@ -50,7 +50,6 @@ No Docker knowledge required. One command gets you a fully containerised Node ap
     - [`.shiplet/Dockerfile`](#shipletdockerfile)
     - [`.env`](#env)
   - [Requirements](#requirements)
-  - [License](#license)
   - [Container Runtime (Docker \& Podman)](#container-runtime-docker--podman)
     - [Auto-detection priority](#auto-detection-priority)
     - [Runtime commands](#runtime-commands)
@@ -67,6 +66,7 @@ No Docker knowledge required. One command gets you a fully containerised Node ap
   - [Linting](#linting)
   - [Scaling Services](#scaling-services)
   - [shiplet.config.json](#shipletconfigjson)
+  - [License](#license)
 
 ---
 
@@ -661,12 +661,6 @@ Shiplet appends its required variables to your `.env` file on init. Variables ar
 
 ---
 
-## License
-
-MIT © Anand Pilania
-
----
-
 ## Container Runtime (Docker & Podman)
 
 Shiplet supports both **Docker** and **Podman** as container runtimes. The runtime is auto-detected at startup — no configuration needed unless you want to pin one explicitly.
@@ -904,3 +898,11 @@ Override the runtime at any time without editing the file:
 ```bash
 SHIPLET_RUNTIME=docker shiplet up
 ```
+
+---
+
+## License
+
+MIT © Anand Pilania
+
+---
