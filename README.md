@@ -66,6 +66,14 @@ No Docker knowledge required. One command gets you a fully containerised Node ap
   - [Linting](#linting)
   - [Scaling Services](#scaling-services)
   - [shiplet.config.json](#shipletconfigjson)
+  - [Web Dashboard](#web-dashboard)
+    - [Dashboard sections](#dashboard-sections)
+    - [Options](#options)
+    - [Live updates](#live-updates)
+  - [Examples](#examples)
+    - [`examples/express-docker`](#examplesexpress-docker)
+    - [`examples/fastify-podman`](#examplesfastify-podman)
+    - [Running either example with the other runtime](#running-either-example-with-the-other-runtime)
   - [License](#license)
 
 ---
@@ -897,6 +905,109 @@ Override the runtime at any time without editing the file:
 
 ```bash
 SHIPLET_RUNTIME=docker shiplet up
+```
+
+---
+
+## Web Dashboard
+
+Launch a live web UI to manage all your containers, projects, and configuration:
+
+```bash
+shiplet dashboard
+# or the alias:
+shiplet ui
+```
+
+Opens **http://localhost:6171** automatically.
+
+### Dashboard sections
+
+| Section        | What it shows                                                                                                                    |
+| -------------- | -------------------------------------------------------------------------------------------------------------------------------- |
+| **Overview**   | Running/stopped containers with live CPU%, memory bars, network I/O, and port mappings. System info panel.                       |
+| **Projects**   | Auto-scanned Shiplet projects. Per-project: services, runtime badge, version, Up/Down/Restart/Build buttons.                     |
+| **Containers** | All containers (including stopped) with searchable table, per-container start/stop/restart/remove actions.                       |
+| **Images**     | All pulled images with repository, tag, size, and creation date.                                                                 |
+| **Volumes**    | Named volumes with driver and mount path.                                                                                        |
+| **Logs**       | Live WebSocket log streaming — select any container, toggle follow mode, clear.                                                  |
+| **Release**    | Visual release wizard: bump selector, pre-release tag, checkboxes for skip-tests/publish, dry-run preview with commit breakdown. |
+| **Settings**   | Docker ↔ Podman runtime switcher. Per-project `.env` editor. CLI quick-reference grid.                                           |
+
+### Options
+
+```bash
+# Custom port
+shiplet dashboard --port 8080
+
+# Don't auto-open browser
+shiplet dashboard --no-open
+
+# Or set via env
+SHIPLET_UI_PORT=9000 shiplet dashboard
+```
+
+### Live updates
+
+The dashboard uses WebSockets for real-time data:
+- Container stats (CPU, memory, network) refresh every **3 seconds**
+- Log streaming is **live** — tail any running container with zero latency
+- The green dot in the top bar shows the WebSocket connection status
+
+---
+
+## Examples
+
+Two complete example projects are included in the `examples/` directory.
+
+### `examples/express-docker`
+
+A production-ready **Express.js** REST API using the **Docker** runtime.
+
+**Services:** PostgreSQL 16, Redis 7, Mailpit, Adminer
+
+```bash
+cd examples/express-docker
+shiplet up -d
+shiplet npm install
+shiplet exec app node src/db/migrate.js
+# App → http://localhost:3000
+# Adminer → http://localhost:8080
+# Mailpit → http://localhost:8025
+```
+
+Features: request logging (morgan), security headers (helmet), Redis caching with 60s TTL, PostgreSQL connection pooling, full CRUD `/api/items`.
+
+### `examples/fastify-podman`
+
+A production-ready **Fastify** REST API (ESM) using the **Podman** runtime.
+
+**Services:** MongoDB 7, Redis 7, MinIO (S3), Mailpit, Mongo Express
+
+```bash
+cd examples/fastify-podman
+SHIPLET_RUNTIME=podman shiplet up -d
+shiplet npm install
+# App        → http://localhost:3000
+# Swagger UI → http://localhost:3000/docs
+# MinIO UI   → http://localhost:9001
+# Mongo UI   → http://localhost:8081
+```
+
+Features: Swagger/OpenAPI docs, JWT authentication, Redis-cached paginated queries with tag/text search, S3-compatible file uploads via pre-signed URLs (MinIO), Mongoose models with indexes, graceful shutdown.
+
+### Running either example with the other runtime
+
+Both examples work with either runtime — just override:
+
+```bash
+# Run the Docker example with Podman
+cd examples/express-docker
+SHIPLET_RUNTIME=podman shiplet up -d
+
+# Run the Podman example with Docker
+cd examples/fastify-podman
+SHIPLET_RUNTIME=docker shiplet up -d
 ```
 
 ---

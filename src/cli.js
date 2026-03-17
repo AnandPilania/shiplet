@@ -28,6 +28,7 @@ const releaseCommand = require('./commands/release');
 const runtimeCommand = require('./commands/runtime');
 const completionsCommand = require('./commands/completions');
 const upgradeCommand = require('./commands/upgrade');
+const dashboardCommand = require('./commands/dashboard');
 
 // ── Banner ────────────────────────────────────────────────────────────────────
 const BANNER = `
@@ -179,5 +180,14 @@ program.command('runtime [action]').description('Container runtime: show | switc
 // TOOLING
 program.command('upgrade').description('Upgrade shiplet to latest').option('--check', 'Check only, no install').action(upgradeCommand);
 program.command('completions [shell]').description('Shell completions for bash | zsh | fish').action(completionsCommand);
+
+// ── Dashboard UI ──────────────────────────────────────────────────────────────
+program
+    .command('dashboard')
+    .alias('ui')
+    .description('Launch web dashboard UI (Tailwind, live metrics, log streaming)')
+    .option('-p, --port <port>', 'Port to listen on', '6171')
+    .option('--no-open', 'Do not auto-open browser')
+    .action(dashboardCommand);
 
 program.parse(process.argv);

@@ -24,7 +24,10 @@
         "release",
         "changelog",
         "snapshots",
-        "semver"
+        "semver",
+        "dashboard",
+        "web-ui",
+        "tailwindcss"
     ],
     "author": {
         "name": "Anand Pilania",
@@ -38,9 +41,12 @@
     "homepage": "https://github.com/anandpilania/shiplet#readme",
     "dependencies": {
         "chalk": "^4.1.2",
+        "chokidar": "^5.0.0",
         "commander": "^11.1.0",
+        "express": "^5.2.1",
         "inquirer": "^8.2.6",
         "ora": "^5.4.1",
+        "ws": "^8.19.0",
         "yaml": "^2.3.4"
     },
     "engines": {

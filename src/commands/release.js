@@ -205,7 +205,7 @@ async function runPreChecks(root, opts) {
 
 module.exports = async function releaseCommand(bump = 'patch', options = {}) {
     const root = findProjectRoot() || process.cwd();
-    header('Node shiplet Release Pipeline');
+    header('Shiplet Release Pipeline');
 
     const isDry = options.dryRun;
     const preTag = options.pre || null;

@@ -1,0 +1,7 @@
+{
+    "runtime": "podman",
+    "appName": "shiplet-fastify",
+    "nodeVersion": "22",
+    "packageManager": "npm",
+    "port": 3000
+}

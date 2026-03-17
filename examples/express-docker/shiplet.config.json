@@ -1,0 +1,7 @@
+{
+    "runtime": "docker",
+    "appName": "shiplet-express",
+    "nodeVersion": "20",
+    "packageManager": "npm",
+    "port": 3000
+}

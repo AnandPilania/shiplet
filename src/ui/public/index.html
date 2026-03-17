@@ -1,0 +1,1188 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Shiplet — Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link
+        href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&family=Syne:wght@400;600;700;800&display=swap"
+        rel="stylesheet" />
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        mono: ['JetBrains Mono', 'monospace'],
+                        display: ['Syne', 'sans-serif'],
+                    },
+                    colors: {
+                        shiplet: {
+                            50: '#f0fdff', 100: '#ccfbff', 200: '#99f5ff',
+                            300: '#55ebff', 400: '#06d4f0', 500: '#00b7d4',
+                            600: '#0092b0', 700: '#00748f', 800: '#005f75',
+                            900: '#004f63', 950: '#002e3d',
+                        },
+                        ink: {
+                            50: '#f6f7f9', 100: '#eceef2', 200: '#d5d9e2',
+                            300: '#b1b8c7', 400: '#8692a8', 500: '#67748e',
+                            600: '#535d75', 700: '#444d60', 800: '#3a4150',
+                            900: '#1e2330', 950: '#12151e',
+                        },
+                    },
+                    animation: {
+                        'pulse-slow': 'pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+                        'slide-in': 'slideIn 0.3s ease-out',
+                        'fade-in': 'fadeIn 0.4s ease-out',
+                    },
+                    keyframes: {
+                        slideIn: { from: { transform: 'translateX(-8px)', opacity: 0 }, to: { transform: 'translateX(0)', opacity: 1 } },
+                        fadeIn: { from: { opacity: 0, transform: 'translateY(4px)' }, to: { opacity: 1, transform: 'translateY(0)' } },
+                    },
+                },
+            },
+        };
+    </script>
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            background: #12151e;
+            color: #e2e6ef;
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        ::-webkit-scrollbar {
+            width: 4px;
+            height: 4px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #1e2330;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #00b7d4;
+            border-radius: 2px;
+        }
+
+        .nav-item.active {
+            background: rgba(0, 183, 212, 0.1);
+            color: #06d4f0;
+            border-left: 2px solid #06d4f0;
+        }
+
+        .nav-item {
+            border-left: 2px solid transparent;
+            transition: all 0.15s;
+        }
+
+        .nav-item:hover {
+            background: rgba(255, 255, 255, 0.04);
+            color: #b1b8c7;
+        }
+
+        .card {
+            background: #1e2330;
+            border: 1px solid #2a3040;
+            border-radius: 8px;
+        }
+
+        .card-glow {
+            box-shadow: 0 0 0 1px rgba(0, 183, 212, 0.15), 0 4px 24px rgba(0, 0, 0, 0.4);
+        }
+
+        .badge-running {
+            background: rgba(34, 197, 94, 0.12);
+            color: #4ade80;
+            border: 1px solid rgba(34, 197, 94, 0.2);
+        }
+
+        .badge-stopped {
+            background: rgba(239, 68, 68, 0.12);
+            color: #f87171;
+            border: 1px solid rgba(239, 68, 68, 0.2);
+        }
+
+        .badge-starting {
+            background: rgba(234, 179, 8, 0.12);
+            color: #facc15;
+            border: 1px solid rgba(234, 179, 8, 0.2);
+        }
+
+        .badge-docker {
+            background: rgba(0, 135, 200, 0.15);
+            color: #38bdf8;
+        }
+
+        .badge-podman {
+            background: rgba(147, 51, 234, 0.15);
+            color: #c084fc;
+        }
+
+        .log-line {
+            font-size: 11px;
+            line-height: 1.6;
+            padding: 1px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+        }
+
+        .log-line.err {
+            color: #f87171;
+        }
+
+        .log-line.warn {
+            color: #facc15;
+        }
+
+        .metric-bar {
+            height: 4px;
+            border-radius: 2px;
+            background: #2a3040;
+            overflow: hidden;
+        }
+
+        .metric-fill {
+            height: 100%;
+            border-radius: 2px;
+            transition: width 0.5s ease;
+        }
+
+        .cpu-fill {
+            background: linear-gradient(90deg, #00b7d4, #06d4f0);
+        }
+
+        .mem-fill {
+            background: linear-gradient(90deg, #8b5cf6, #a78bfa);
+        }
+
+        .modal-bg {
+            background: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(4px);
+        }
+
+        .input {
+            background: #12151e;
+            border: 1px solid #2a3040;
+            color: #e2e6ef;
+            border-radius: 6px;
+            padding: 6px 10px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 13px;
+            outline: none;
+        }
+
+        .input:focus {
+            border-color: #00b7d4;
+            box-shadow: 0 0 0 2px rgba(0, 183, 212, 0.15);
+        }
+
+        .btn-primary {
+            background: #00b7d4;
+            color: #12151e;
+            font-weight: 600;
+            border-radius: 6px;
+            padding: 6px 14px;
+            font-size: 13px;
+            transition: all 0.15s;
+            cursor: pointer;
+        }
+
+        .btn-primary:hover {
+            background: #06d4f0;
+        }
+
+        .btn-ghost {
+            background: transparent;
+            border: 1px solid #2a3040;
+            color: #8692a8;
+            border-radius: 6px;
+            padding: 5px 12px;
+            font-size: 12px;
+            transition: all 0.15s;
+            cursor: pointer;
+        }
+
+        .btn-ghost:hover {
+            border-color: #00b7d4;
+            color: #06d4f0;
+        }
+
+        .btn-danger {
+            background: rgba(239, 68, 68, 0.12);
+            border: 1px solid rgba(239, 68, 68, 0.2);
+            color: #f87171;
+            border-radius: 6px;
+            padding: 5px 12px;
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+
+        .btn-danger:hover {
+            background: rgba(239, 68, 68, 0.2);
+        }
+
+        .section {
+            display: none;
+        }
+
+        .section.active {
+            display: block;
+            animation: fadeIn 0.3s ease-out;
+        }
+
+        .toast {
+            position: fixed;
+            bottom: 24px;
+            right: 24px;
+            padding: 10px 18px;
+            border-radius: 8px;
+            font-size: 13px;
+            z-index: 1000;
+            animation: slideIn 0.3s ease-out;
+        }
+
+        .sparkline-bar {
+            display: inline-block;
+            width: 4px;
+            margin: 0 1px;
+            background: #00b7d4;
+            border-radius: 1px;
+            vertical-align: bottom;
+            transition: height 0.3s;
+        }
+    </style>
+</head>
+
+<body class="flex h-screen overflow-hidden">
+
+    <!-- ── Sidebar ─────────────────────────────────────────────────────────────── -->
+    <aside class="w-56 flex-shrink-0 flex flex-col border-r border-ink-800 bg-ink-950">
+        <!-- Logo -->
+        <div class="px-5 py-4 border-b border-ink-800">
+            <div class="flex items-center gap-2">
+                <div
+                    class="w-7 h-7 rounded bg-shiplet-500 flex items-center justify-center text-ink-950 font-display font-800 text-sm">
+                    T</div>
+                <span class="font-display font-700 text-sm text-white tracking-wide">Shiplet</span>
+            </div>
+            <div id="runtime-badge"
+                class="mt-2 inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-mono badge-docker">
+                <span class="w-1.5 h-1.5 rounded-full bg-current animate-pulse-slow"></span>
+                <span id="runtime-label">docker</span>
+            </div>
+        </div>
+
+        <!-- Nav -->
+        <nav class="flex-1 py-3 px-2 space-y-0.5 overflow-y-auto">
+            <a href="#"
+                class="nav-item active flex items-center gap-2.5 px-3 py-2 rounded text-sm text-shiplet-400 cursor-pointer"
+                data-section="overview">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+                        d="M3 7h18M3 12h18M3 17h12" />
+                </svg>
+                Overview
+            </a>
+            <a href="#" class="nav-item flex items-center gap-2.5 px-3 py-2 rounded text-sm text-ink-400 cursor-pointer"
+                data-section="projects">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+                        d="M3 7a2 2 0 012-2h14a2 2 0 012 2v10a2 2 0 01-2 2H5a2 2 0 01-2-2V7z" />
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+                        d="M8 7V5a2 2 0 012-2h4a2 2 0 012 2v2" />
+                </svg>
+                Projects
+                <span id="projects-count" class="ml-auto text-xs bg-ink-800 text-ink-400 px-1.5 py-0.5 rounded">0</span>
+            </a>
+            <a href="#" class="nav-item flex items-center gap-2.5 px-3 py-2 rounded text-sm text-ink-400 cursor-pointer"
+                data-section="containers">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <rect x="2" y="7" width="20" height="14" rx="2" stroke-width="1.5" />
+                    <path stroke-linecap="round" stroke-width="1.5" d="M16 7V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v2" />
+                </svg>
+                Containers
+                <span id="containers-count"
+                    class="ml-auto text-xs bg-ink-800 text-ink-400 px-1.5 py-0.5 rounded">0</span>
+            </a>
+            <a href="#" class="nav-item flex items-center gap-2.5 px-3 py-2 rounded text-sm text-ink-400 cursor-pointer"
+                data-section="images">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+                        d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                </svg>
+                Images
+            </a>
+            <a href="#" class="nav-item flex items-center gap-2.5 px-3 py-2 rounded text-sm text-ink-400 cursor-pointer"
+                data-section="volumes">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+                        d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
+                </svg>
+                Volumes
+            </a>
+            <a href="#" class="nav-item flex items-center gap-2.5 px-3 py-2 rounded text-sm text-ink-400 cursor-pointer"
+                data-section="logs">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+                        d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+                Logs
+            </a>
+            <a href="#" class="nav-item flex items-center gap-2.5 px-3 py-2 rounded text-sm text-ink-400 cursor-pointer"
+                data-section="release">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+                        d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                </svg>
+                Release
+            </a>
+            <a href="#" class="nav-item flex items-center gap-2.5 px-3 py-2 rounded text-sm text-ink-400 cursor-pointer"
+                data-section="config">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+                        d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                    <circle cx="12" cy="12" r="3" stroke-width="1.5" />
+                </svg>
+                Settings
+            </a>
+        </nav>
+
+        <!-- System summary footer -->
+        <div class="px-4 py-3 border-t border-ink-800 text-xs text-ink-500 space-y-1">
+            <div class="flex justify-between"><span>Running</span><span id="footer-running"
+                    class="text-green-400">—</span></div>
+            <div class="flex justify-between"><span>Total</span><span id="footer-total" class="text-ink-300">—</span>
+            </div>
+            <div class="flex justify-between"><span>Images</span><span id="footer-images" class="text-ink-300">—</span>
+            </div>
+        </div>
+    </aside>
+
+    <!-- ── Main content ─────────────────────────────────────────────────────────── -->
+    <main class="flex-1 flex flex-col overflow-hidden">
+        <!-- Top bar -->
+        <header class="flex-shrink-0 flex items-center justify-between px-6 py-3 border-b border-ink-800 bg-ink-950">
+            <div>
+                <h1 id="page-title" class="font-display font-700 text-white text-base">Overview</h1>
+                <p id="page-sub" class="text-xs text-ink-500 mt-0.5">Live container metrics</p>
+            </div>
+            <div class="flex items-center gap-3">
+                <!-- Live indicator -->
+                <div class="flex items-center gap-1.5 text-xs text-ink-500">
+                    <span id="ws-dot" class="w-2 h-2 rounded-full bg-ink-600"></span>
+                    <span id="ws-label">connecting…</span>
+                </div>
+                <!-- Runtime switcher -->
+                <button onclick="UI.openRuntimeModal()" class="btn-ghost text-xs">
+                    ⇄ Switch Runtime
+                </button>
+                <!-- Refresh -->
+                <button onclick="UI.refresh()" class="btn-ghost text-xs">↺ Refresh</button>
+            </div>
+        </header>
+
+        <div class="flex-1 overflow-y-auto p-6 space-y-6">
+
+            <!-- ── Overview ──────────────────────────────────────────────────────── -->
+            <div id="section-overview" class="section active space-y-6">
+
+                <!-- Stat cards -->
+                <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                    <div class="card card-glow p-4">
+                        <p class="text-xs text-ink-500 uppercase tracking-widest">Running</p>
+                        <p id="stat-running" class="font-display font-700 text-2xl text-green-400 mt-1">—</p>
+                        <p class="text-xs text-ink-500 mt-1">containers</p>
+                    </div>
+                    <div class="card card-glow p-4">
+                        <p class="text-xs text-ink-500 uppercase tracking-widest">Total</p>
+                        <p id="stat-total" class="font-display font-700 text-2xl text-shiplet-400 mt-1">—</p>
+                        <p class="text-xs text-ink-500 mt-1">containers</p>
+                    </div>
+                    <div class="card card-glow p-4">
+                        <p class="text-xs text-ink-500 uppercase tracking-widest">Images</p>
+                        <p id="stat-images" class="font-display font-700 text-2xl text-purple-400 mt-1">—</p>
+                        <p class="text-xs text-ink-500 mt-1">pulled</p>
+                    </div>
+                    <div class="card card-glow p-4">
+                        <p class="text-xs text-ink-500 uppercase tracking-widest">Memory</p>
+                        <p id="stat-memory" class="font-display font-700 text-2xl text-amber-400 mt-1">—</p>
+                        <p class="text-xs text-ink-500 mt-1">host total</p>
+                    </div>
+                </div>
+
+                <!-- Container metrics table -->
+                <div class="card">
+                    <div class="flex items-center justify-between px-4 py-3 border-b border-ink-800">
+                        <span class="text-sm font-600 text-white">Container Metrics</span>
+                        <span class="text-xs text-ink-500">live · 3s refresh</span>
+                    </div>
+                    <div id="overview-table" class="overflow-x-auto">
+                        <table class="w-full text-xs">
+                            <thead>
+                                <tr class="text-ink-500 uppercase tracking-widest border-b border-ink-800">
+                                    <th class="text-left px-4 py-2 font-500">Container</th>
+                                    <th class="text-left px-4 py-2 font-500">Status</th>
+                                    <th class="text-left px-4 py-2 font-500">CPU</th>
+                                    <th class="text-left px-4 py-2 font-500">Memory</th>
+                                    <th class="text-left px-4 py-2 font-500">Network I/O</th>
+                                    <th class="text-left px-4 py-2 font-500">Ports</th>
+                                    <th class="px-4 py-2"></th>
+                                </tr>
+                            </thead>
+                            <tbody id="overview-tbody" class="divide-y divide-ink-800/50"></tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- System info -->
+                <div class="card p-4">
+                    <p class="text-xs text-ink-500 uppercase tracking-widest mb-3">System Info</p>
+                    <div id="system-info" class="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs"></div>
+                </div>
+            </div>
+
+            <!-- ── Projects ──────────────────────────────────────────────────────── -->
+            <div id="section-projects" class="section space-y-4">
+                <div id="projects-list" class="grid grid-cols-1 lg:grid-cols-2 gap-4"></div>
+            </div>
+
+            <!-- ── Containers ────────────────────────────────────────────────────── -->
+            <div id="section-containers" class="section">
+                <div class="card">
+                    <div class="flex items-center justify-between px-4 py-3 border-b border-ink-800">
+                        <span class="text-sm font-600 text-white">All Containers</span>
+                        <input id="container-search" class="input w-48 text-xs" placeholder="Search…"
+                            oninput="UI.filterContainers(this.value)" />
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-xs">
+                            <thead>
+                                <tr class="text-ink-500 uppercase tracking-widest border-b border-ink-800">
+                                    <th class="text-left px-4 py-2">Name</th>
+                                    <th class="text-left px-4 py-2">Image</th>
+                                    <th class="text-left px-4 py-2">Status</th>
+                                    <th class="text-left px-4 py-2">Ports</th>
+                                    <th class="px-4 py-2">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="containers-tbody" class="divide-y divide-ink-800/50"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ── Images ────────────────────────────────────────────────────────── -->
+            <div id="section-images" class="section">
+                <div class="card">
+                    <div class="px-4 py-3 border-b border-ink-800 flex items-center justify-between">
+                        <span class="text-sm font-600 text-white">Images</span>
+                        <span id="images-total" class="text-xs text-ink-500"></span>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-xs">
+                            <thead>
+                                <tr class="text-ink-500 uppercase tracking-widest border-b border-ink-800">
+                                    <th class="text-left px-4 py-2">Repository</th>
+                                    <th class="text-left px-4 py-2">Tag</th>
+                                    <th class="text-left px-4 py-2">Size</th>
+                                    <th class="text-left px-4 py-2">Created</th>
+                                    <th class="text-left px-4 py-2">ID</th>
+                                </tr>
+                            </thead>
+                            <tbody id="images-tbody" class="divide-y divide-ink-800/50"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ── Volumes ────────────────────────────────────────────────────────── -->
+            <div id="section-volumes" class="section">
+                <div class="card">
+                    <div class="px-4 py-3 border-b border-ink-800">
+                        <span class="text-sm font-600 text-white">Volumes</span>
+                    </div>
+                    <div id="volumes-list" class="divide-y divide-ink-800/50"></div>
+                </div>
+            </div>
+
+            <!-- ── Logs ──────────────────────────────────────────────────────────── -->
+            <div id="section-logs" class="section space-y-4">
+                <div class="flex items-center gap-3">
+                    <select id="log-container-select" class="input flex-1 text-xs"
+                        onchange="UI.subscribeLog(this.value)">
+                        <option value="">— Select a container —</option>
+                    </select>
+                    <button onclick="UI.clearLogs()" class="btn-ghost text-xs">Clear</button>
+                    <label class="flex items-center gap-2 text-xs text-ink-400 cursor-pointer">
+                        <input type="checkbox" id="log-follow" checked class="accent-shiplet-500" /> Follow
+                    </label>
+                </div>
+                <div class="card p-0 overflow-hidden">
+                    <div id="log-output"
+                        class="h-[calc(100vh-260px)] overflow-y-auto p-4 font-mono text-xs text-ink-300 space-y-0">
+                    </div>
+                </div>
+            </div>
+
+            <!-- ── Release ────────────────────────────────────────────────────────── -->
+            <div id="section-release" class="section space-y-4">
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+                    <!-- Left: release info -->
+                    <div class="lg:col-span-2 space-y-4">
+                        <div class="card p-4">
+                            <p class="text-xs text-ink-500 uppercase tracking-widest mb-3">Release Info</p>
+                            <div id="release-info" class="space-y-3 text-sm"></div>
+                        </div>
+                        <div class="card p-4">
+                            <p class="text-xs text-ink-500 uppercase tracking-widest mb-3">Recent Commits</p>
+                            <div id="release-commits" class="space-y-1 max-h-64 overflow-y-auto"></div>
+                        </div>
+                    </div>
+                    <!-- Right: release controls -->
+                    <div class="space-y-4">
+                        <div class="card p-4 space-y-3">
+                            <p class="text-xs text-ink-500 uppercase tracking-widest">New Release</p>
+                            <div class="space-y-2">
+                                <label class="text-xs text-ink-400">Bump type</label>
+                                <select id="release-bump" class="input w-full text-xs">
+                                    <option value="patch">patch</option>
+                                    <option value="minor">minor</option>
+                                    <option value="major">major</option>
+                                </select>
+                            </div>
+                            <div class="space-y-2">
+                                <label class="text-xs text-ink-400">Pre-release tag (optional)</label>
+                                <input id="release-pre" class="input w-full text-xs" placeholder="alpha / beta / rc" />
+                            </div>
+                            <div class="space-y-1.5 text-xs">
+                                <label class="flex items-center gap-2 text-ink-400 cursor-pointer">
+                                    <input type="checkbox" id="rel-skip-tests" class="accent-shiplet-500" /> Skip tests
+                                </label>
+                                <label class="flex items-center gap-2 text-ink-400 cursor-pointer">
+                                    <input type="checkbox" id="rel-skip-build" class="accent-shiplet-500" /> Skip image
+                                    build
+                                </label>
+                                <label class="flex items-center gap-2 text-ink-400 cursor-pointer">
+                                    <input type="checkbox" id="rel-publish" class="accent-shiplet-500" /> npm publish
+                                </label>
+                            </div>
+                            <button onclick="UI.triggerRelease(false)" class="btn-primary w-full text-center">
+                                🚀 Release (dry-run)
+                            </button>
+                            <button onclick="UI.triggerRelease(true)" class="btn-ghost w-full text-center text-xs">
+                                Release for real
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ── Config / Settings ─────────────────────────────────────────────── -->
+            <div id="section-config" class="section space-y-4">
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                    <!-- Runtime -->
+                    <div class="card p-4 space-y-3">
+                        <p class="text-xs text-ink-500 uppercase tracking-widest">Container Runtime</p>
+                        <div class="flex gap-2">
+                            <button onclick="UI.switchRuntime('docker')" id="btn-docker"
+                                class="flex-1 py-3 rounded border border-ink-700 text-sm text-ink-300 hover:border-blue-500 hover:text-blue-400 transition-all">
+                                🐳 Docker
+                            </button>
+                            <button onclick="UI.switchRuntime('podman')" id="btn-podman"
+                                class="flex-1 py-3 rounded border border-ink-700 text-sm text-ink-300 hover:border-purple-500 hover:text-purple-400 transition-all">
+                                🦭 Podman
+                            </button>
+                        </div>
+                        <p class="text-xs text-ink-500">Active runtime is auto-detected or pinned via <code
+                                class="text-shiplet-400">shiplet.config.json</code> or <code
+                                class="text-shiplet-400">SHIPLET_RUNTIME</code> env var.</p>
+                    </div>
+
+                    <!-- Project env editor -->
+                    <div class="card p-4 space-y-3">
+                        <p class="text-xs text-ink-500 uppercase tracking-widest">Environment Variables</p>
+                        <select id="env-project-select" class="input w-full text-xs"
+                            onchange="UI.loadProjectEnv(this.value)">
+                            <option value="">— Select project —</option>
+                        </select>
+                        <div id="env-editor" class="space-y-2 max-h-72 overflow-y-auto"></div>
+                    </div>
+
+                    <!-- CLI quick reference -->
+                    <div class="card p-4 lg:col-span-2">
+                        <p class="text-xs text-ink-500 uppercase tracking-widest mb-3">CLI Quick Reference</p>
+                        <div class="grid grid-cols-2 md:grid-cols-3 gap-2">
+                            <div id="cli-ref"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </div><!-- /main scroll -->
+    </main>
+
+    <!-- ── Log modal ──────────────────────────────────────────────────────────── -->
+    <div id="log-modal" class="hidden fixed inset-0 modal-bg z-50 flex items-center justify-center p-6">
+        <div class="card w-full max-w-4xl max-h-[80vh] flex flex-col">
+            <div class="flex items-center justify-between px-4 py-3 border-b border-ink-800">
+                <span id="log-modal-title" class="text-sm font-600 text-white"></span>
+                <button onclick="UI.closeLogModal()" class="text-ink-500 hover:text-white text-lg">✕</button>
+            </div>
+            <div id="log-modal-content" class="flex-1 overflow-y-auto p-4 font-mono text-xs text-ink-300 space-y-0">
+            </div>
+        </div>
+    </div>
+
+    <!-- ── Runtime modal ──────────────────────────────────────────────────────── -->
+    <div id="runtime-modal" class="hidden fixed inset-0 modal-bg z-50 flex items-center justify-center p-6">
+        <div class="card w-full max-w-sm p-5 space-y-4">
+            <p class="font-display font-700 text-white text-base">Switch Runtime</p>
+            <div class="grid grid-cols-2 gap-3">
+                <button onclick="UI.switchRuntime('docker'); UI.closeRuntimeModal();"
+                    class="card p-4 text-center hover:border-blue-500 hover:text-blue-400 transition-all cursor-pointer">
+                    <div class="text-3xl mb-1">🐳</div>
+                    <div class="text-sm font-600">Docker</div>
+                    <div class="text-xs text-ink-500 mt-0.5">Docker Desktop / Engine</div>
+                </button>
+                <button onclick="UI.switchRuntime('podman'); UI.closeRuntimeModal();"
+                    class="card p-4 text-center hover:border-purple-500 hover:text-purple-400 transition-all cursor-pointer">
+                    <div class="text-3xl mb-1">🦭</div>
+                    <div class="text-sm font-600">Podman</div>
+                    <div class="text-xs text-ink-500 mt-0.5">Rootless · Daemonless</div>
+                </button>
+            </div>
+            <button onclick="UI.closeRuntimeModal()" class="btn-ghost w-full text-xs text-center">Cancel</button>
+        </div>
+    </div>
+
+    <!-- ── Toast container ────────────────────────────────────────────────────── -->
+    <div id="toast-area"></div>
+
+    <script>
+        // ── State ──────────────────────────────────────────────────────────────────
+        const State = {
+            currentSection: 'overview',
+            containers: [],
+            stats: {},
+            projects: [],
+            runtime: 'docker',
+            ws: null,
+            logContainer: null,
+        };
+
+        // ── WS ─────────────────────────────────────────────────────────────────────
+        function connectWS() {
+            const proto = location.protocol === 'https:' ? 'wss' : 'ws';
+            const ws = new WebSocket(`${proto}://${location.host}`);
+            State.ws = ws;
+
+            ws.onopen = () => {
+                document.getElementById('ws-dot').className = 'w-2 h-2 rounded-full bg-green-400 animate-pulse-slow';
+                document.getElementById('ws-label').textContent = 'live';
+                ws.send(JSON.stringify({ type: 'ping' }));
+            };
+
+            ws.onmessage = (e) => {
+                try {
+                    const msg = JSON.parse(e.data);
+                    if (msg.type === 'stats_update') {
+                        State.containers = msg.containers || [];
+                        State.stats = Object.fromEntries((msg.stats || []).map(s => [s.name, s]));
+                        if (State.currentSection === 'overview') renderOverviewTable();
+                        if (State.currentSection === 'containers') renderContainersTable();
+                        updateFooter();
+                    }
+                    if (msg.type === 'log') appendLog(msg.line);
+                    if (msg.type === 'pong') { State.runtime = msg.rt; updateRuntimeBadge(); }
+                } catch { }
+            };
+
+            ws.onclose = () => {
+                document.getElementById('ws-dot').className = 'w-2 h-2 rounded-full bg-red-400';
+                document.getElementById('ws-label').textContent = 'disconnected';
+                setTimeout(connectWS, 3000);
+            };
+        }
+
+        // ── API helpers ────────────────────────────────────────────────────────────
+        async function api(path, opts = {}) {
+            const r = await fetch(path, { headers: { 'Content-Type': 'application/json' }, ...opts });
+            return r.json();
+        }
+
+        // ── UI namespace ───────────────────────────────────────────────────────────
+        const UI = {
+            async init() {
+                this.bindNav();
+                connectWS();
+                await this.refresh();
+                renderCliRef();
+            },
+
+            bindNav() {
+                document.querySelectorAll('.nav-item[data-section]').forEach(a => {
+                    a.addEventListener('click', e => {
+                        e.preventDefault();
+                        const sec = a.dataset.section;
+                        this.navigate(sec);
+                    });
+                });
+            },
+
+            navigate(section) {
+                State.currentSection = section;
+                document.querySelectorAll('.nav-item').forEach(a => a.classList.remove('active'));
+                document.querySelector(`[data-section="${section}"]`)?.classList.add('active');
+                document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+                document.getElementById(`section-${section}`)?.classList.add('active');
+
+                const titles = {
+                    overview: 'Overview', projects: 'Projects', containers: 'Containers',
+                    images: 'Images', volumes: 'Volumes', logs: 'Logs', release: 'Release Pipeline', config: 'Settings'
+                };
+                const subs = {
+                    overview: 'Live container metrics', projects: 'Shiplet project management',
+                    containers: 'All containers', images: 'Pulled images', volumes: 'Named volumes',
+                    logs: 'Live log streaming', release: 'Semver · Changelog · Git tags', config: 'Runtime & configuration'
+                };
+                document.getElementById('page-title').textContent = titles[section] || section;
+                document.getElementById('page-sub').textContent = subs[section] || '';
+
+                if (section === 'projects') this.loadProjects();
+                if (section === 'images') this.loadImages();
+                if (section === 'volumes') this.loadVolumes();
+                if (section === 'logs') this.loadLogContainerList();
+                if (section === 'release') this.loadReleaseInfo();
+                if (section === 'config') this.loadConfig();
+            },
+
+            async refresh() {
+                const data = await api('/api/overview');
+                State.runtime = data.runtime || 'docker';
+                State.containers = data.containers || [];
+                State.stats = data.statsMap || {};
+
+                document.getElementById('stat-running').textContent = data.running?.length || '0';
+                document.getElementById('stat-total').textContent = data.containers?.length || '0';
+                document.getElementById('stat-images').textContent = data.sysInfo?.images || '—';
+                document.getElementById('stat-memory').textContent = data.sysInfo?.memory || '—';
+
+                updateRuntimeBadge();
+                renderOverviewTable();
+                renderSystemInfo(data.sysInfo || {});
+                updateFooter();
+            },
+
+            async loadProjects() {
+                const projects = await api('/api/projects');
+                State.projects = projects;
+                document.getElementById('projects-count').textContent = projects.length;
+                document.getElementById('projects-list').innerHTML = projects.map(renderProjectCard).join('');
+
+                // Populate env project select
+                const sel = document.getElementById('env-project-select');
+                sel.innerHTML = '<option value="">— Select project —</option>' +
+                    projects.map(p => `<option value="${p.id}">${p.name}</option>`).join('');
+            },
+
+            async loadImages() {
+                const images = await api('/api/images');
+                document.getElementById('images-total').textContent = images.length + ' images';
+                document.getElementById('images-tbody').innerHTML = images.map(img => `
+      <tr class="hover:bg-ink-800/30 transition-colors">
+        <td class="px-4 py-2 text-shiplet-300">${img.repo || '&lt;none&gt;'}</td>
+        <td class="px-4 py-2"><span class="badge-running px-2 py-0.5 rounded text-xs">${img.tag || 'latest'}</span></td>
+        <td class="px-4 py-2 text-ink-400">${img.size}</td>
+        <td class="px-4 py-2 text-ink-400">${img.created}</td>
+        <td class="px-4 py-2 font-mono text-ink-500">${img.id}</td>
+      </tr>`).join('');
+            },
+
+            async loadVolumes() {
+                const vols = await api('/api/volumes');
+                document.getElementById('volumes-list').innerHTML = vols.map(v => `
+      <div class="flex items-center justify-between px-4 py-3 hover:bg-ink-800/20 transition-colors">
+        <div>
+          <p class="text-sm text-white">${v.name}</p>
+          <p class="text-xs text-ink-500 font-mono mt-0.5 truncate max-w-xs">${v.mount || '—'}</p>
+        </div>
+        <span class="text-xs px-2 py-0.5 bg-ink-800 text-ink-400 rounded">${v.driver}</span>
+      </div>`).join('') || '<p class="px-4 py-6 text-xs text-ink-500 text-center">No volumes found</p>';
+            },
+
+            loadLogContainerList() {
+                const sel = document.getElementById('log-container-select');
+                sel.innerHTML = '<option value="">— Select a container —</option>' +
+                    State.containers.map(c => `<option value="${c.name}">${c.name}</option>`).join('');
+            },
+
+            subscribeLog(name) {
+                if (!name) return;
+                State.logContainer = name;
+                document.getElementById('log-output').innerHTML = '';
+                if (State.ws?.readyState === 1) {
+                    State.ws.send(JSON.stringify({ type: 'subscribe_logs', container: name }));
+                }
+            },
+
+            clearLogs() {
+                document.getElementById('log-output').innerHTML = '';
+            },
+
+            async loadReleaseInfo() {
+                const info = await api('/api/release/info');
+                if (info.error) {
+                    document.getElementById('release-info').innerHTML = `<p class="text-xs text-red-400">${info.error}</p>`;
+                    return;
+                }
+                document.getElementById('release-info').innerHTML = `
+      <div class="flex justify-between items-center py-1.5 border-b border-ink-800">
+        <span class="text-ink-400 text-xs">Current version</span>
+        <span class="font-mono text-shiplet-300">${info.version}</span>
+      </div>
+      <div class="flex justify-between items-center py-1.5 border-b border-ink-800">
+        <span class="text-ink-400 text-xs">Last tag</span>
+        <span class="font-mono text-green-300">${info.lastTag || 'none'}</span>
+      </div>
+      <div class="flex justify-between items-center py-1.5 border-b border-ink-800">
+        <span class="text-ink-400 text-xs">Branch</span>
+        <span class="font-mono text-purple-300">${info.branch}</span>
+      </div>
+      <div class="flex justify-between items-center py-1.5">
+        <span class="text-ink-400 text-xs">Working tree</span>
+        <span class="${info.clean ? 'text-green-400' : 'text-yellow-400'}">${info.clean ? '✔ clean' : '⚠ dirty'}</span>
+      </div>`;
+
+                const TYPES = { feat: '🚀', fix: '🐛', perf: '⚡', docs: '📝', chore: '🔨', test: '🧪', refactor: '♻️', ci: '🤖' };
+                document.getElementById('release-commits').innerHTML = (info.commits || []).map(c => {
+                    const m = c.match(/^[a-f0-9]+\s+(\w+)(?:\([^)]+\))?:\s+(.+)$/);
+                    const type = m?.[1] || 'other';
+                    const desc = m?.[2] || c.replace(/^[a-f0-9]+\s*/, '');
+                    const icon = TYPES[type] || '📌';
+                    return `<div class="flex items-start gap-2 py-1 text-xs border-b border-ink-800/50">
+        <span class="flex-shrink-0">${icon}</span>
+        <span class="text-ink-300">${desc}</span>
+        <span class="ml-auto text-ink-600 flex-shrink-0">${type}</span>
+      </div>`;
+                }).join('') || '<p class="text-xs text-ink-500">No commits since last tag</p>';
+            },
+
+            async triggerRelease(real) {
+                const bump = document.getElementById('release-bump').value;
+                const pre = document.getElementById('release-pre').value.trim();
+                const flags = ['--yes', '--force'];
+                if (!real) flags.push('--dry-run');
+                if (document.getElementById('rel-skip-tests').checked) flags.push('--skip-tests');
+                if (document.getElementById('rel-skip-build').checked) flags.push('--skip-build');
+                if (document.getElementById('rel-publish').checked) flags.push('--publish');
+                if (pre) flags.push('--pre', pre);
+
+                const cmd = `shiplet release ${bump} ${flags.join(' ')}`;
+                toast(`Running: ${cmd}`, 'info');
+                // In a real integration, this would spawn the process and stream output
+                // Here we show a modal with the command to copy
+                showCmdModal(cmd);
+            },
+
+            async loadConfig() {
+                updateRuntimeBadge();
+                const rt = State.runtime;
+                document.getElementById('btn-docker').className = `flex-1 py-3 rounded border text-sm transition-all ${rt === 'docker' ? 'border-blue-500 text-blue-400 bg-blue-500/10' : 'border-ink-700 text-ink-300 hover:border-blue-500 hover:text-blue-400'}`;
+                document.getElementById('btn-podman').className = `flex-1 py-3 rounded border text-sm transition-all ${rt === 'podman' ? 'border-purple-500 text-purple-400 bg-purple-500/10' : 'border-ink-700 text-ink-300 hover:border-purple-500 hover:text-purple-400'}`;
+            },
+
+            async loadProjectEnv(projectId) {
+                if (!projectId) return;
+                const data = await api(`/api/projects/${projectId}/env`);
+                const env = data.env || {};
+                document.getElementById('env-editor').innerHTML = Object.entries(env).map(([k, v]) => `
+      <div class="flex gap-2 items-center">
+        <span class="text-xs text-shiplet-400 w-36 truncate flex-shrink-0">${k}</span>
+        <input data-key="${k}" data-project="${projectId}" value="${v}"
+          class="input flex-1 text-xs py-1"
+          onblur="UI.saveEnvKey(this)"/>
+      </div>`).join('') || '<p class="text-xs text-ink-500">No .env file found</p>';
+            },
+
+            async saveEnvKey(input) {
+                const { key, project } = input.dataset;
+                await api(`/api/projects/${project}/env/${key}`, {
+                    method: 'PUT', body: JSON.stringify({ value: input.value }),
+                });
+                toast(`Saved ${key}`, 'success');
+            },
+
+            filterContainers(q) {
+                document.querySelectorAll('#containers-tbody tr').forEach(row => {
+                    row.style.display = q && !row.textContent.toLowerCase().includes(q.toLowerCase()) ? 'none' : '';
+                });
+            },
+
+            async containerAction(name, action) {
+                await api(`/api/containers/${name}/action`, { method: 'POST', body: JSON.stringify({ action }) });
+                toast(`${action} → ${name}`, 'success');
+                setTimeout(() => this.refresh(), 800);
+            },
+
+            async projectAction(id, action) {
+                toast(`Running: ${action}…`, 'info');
+                await api(`/api/projects/${id}/action`, { method: 'POST', body: JSON.stringify({ action }) });
+                toast(`${action} complete`, 'success');
+                setTimeout(() => this.loadProjects(), 1200);
+            },
+
+            async openLogs(name) {
+                document.getElementById('log-modal-title').textContent = `Logs — ${name}`;
+                document.getElementById('log-modal-content').innerHTML = '<span class="text-ink-500">Loading…</span>';
+                document.getElementById('log-modal').classList.remove('hidden');
+                const data = await api(`/api/containers/${name}/logs?lines=200`);
+                const lines = (data.logs || '').split('\n');
+                document.getElementById('log-modal-content').innerHTML = lines.map(l => {
+                    const cls = l.includes('ERR') || l.includes('error') ? 'text-red-400' :
+                        l.includes('WARN') || l.includes('warn') ? 'text-yellow-400' : 'text-ink-300';
+                    return `<div class="log-line ${cls}">${escHtml(l)}</div>`;
+                }).join('');
+            },
+
+            closeLogModal() { document.getElementById('log-modal').classList.add('hidden'); },
+            openRuntimeModal() { document.getElementById('runtime-modal').classList.remove('hidden'); },
+            closeRuntimeModal() { document.getElementById('runtime-modal').classList.add('hidden'); },
+
+            async switchRuntime(rt) {
+                await api('/api/runtime/switch', { method: 'POST', body: JSON.stringify({ runtime: rt }) });
+                State.runtime = rt;
+                updateRuntimeBadge();
+                toast(`Switched to ${rt}`, 'success');
+                if (State.currentSection === 'config') this.loadConfig();
+            },
+        };
+
+        // ── Renderers ──────────────────────────────────────────────────────────────
+        function renderOverviewTable() {
+            const tbody = document.getElementById('overview-tbody');
+            if (!tbody) return;
+
+            tbody.innerHTML = State.containers.map(c => {
+                const stat = State.stats[c.name] || {};
+                const isUp = c.status?.toLowerCase().includes('up');
+                const cpu = parseFloat(stat.cpu) || 0;
+                const memMatch = (stat.memPerc || '0%').replace('%', '');
+                const mem = parseFloat(memMatch) || 0;
+
+                return `<tr class="hover:bg-ink-800/30 transition-colors">
+      <td class="px-4 py-2.5">
+        <div class="flex items-center gap-2">
+          <span class="w-1.5 h-1.5 rounded-full flex-shrink-0 ${isUp ? 'bg-green-400' : 'bg-red-400'}"></span>
+          <span class="text-white text-xs">${c.name}</span>
+        </div>
+      </td>
+      <td class="px-4 py-2.5">
+        <span class="text-xs px-2 py-0.5 rounded ${isUp ? 'badge-running' : 'badge-stopped'}">${c.status?.split(' ')[0] || '—'}</span>
+      </td>
+      <td class="px-4 py-2.5 min-w-[80px]">
+        <div class="text-xs text-ink-300 mb-1">${stat.cpu || '—'}</div>
+        <div class="metric-bar w-16"><div class="metric-fill cpu-fill" style="width:${Math.min(cpu, 100)}%"></div></div>
+      </td>
+      <td class="px-4 py-2.5 min-w-[100px]">
+        <div class="text-xs text-ink-300 mb-1">${stat.mem?.split('/')[0]?.trim() || '—'}</div>
+        <div class="metric-bar w-16"><div class="metric-fill mem-fill" style="width:${Math.min(mem, 100)}%"></div></div>
+      </td>
+      <td class="px-4 py-2.5 text-xs text-ink-400">${stat.netIO || '—'}</td>
+      <td class="px-4 py-2.5 text-xs text-ink-400 font-mono">${(c.ports || '').split(',')[0] || '—'}</td>
+      <td class="px-4 py-2.5">
+        <div class="flex gap-1">
+          <button onclick="UI.openLogs('${c.name}')" class="btn-ghost py-1 px-2 text-xs">logs</button>
+          ${isUp
+                        ? `<button onclick="UI.containerAction('${c.name}','stop')" class="btn-danger py-1 px-2 text-xs">stop</button>`
+                        : `<button onclick="UI.containerAction('${c.name}','start')" class="btn-primary py-1 px-2 text-xs">start</button>`}
+        </div>
+      </td>
+    </tr>`;
+            }).join('') || '<tr><td colspan="7" class="px-4 py-8 text-center text-xs text-ink-500">No containers found. Run <code class="text-shiplet-400">shiplet up</code></td></tr>';
+        }
+
+        function renderContainersTable() {
+            const tbody = document.getElementById('containers-tbody');
+            if (!tbody) return;
+            tbody.innerHTML = State.containers.map(c => {
+                const isUp = c.status?.toLowerCase().includes('up');
+                return `<tr class="hover:bg-ink-800/30 transition-colors">
+      <td class="px-4 py-2.5">
+        <div class="flex items-center gap-2">
+          <span class="w-1.5 h-1.5 rounded-full ${isUp ? 'bg-green-400' : 'bg-red-400'}"></span>
+          <span class="text-white text-xs">${c.name}</span>
+          <span class="text-ink-600 text-xs">${c.id || ''}</span>
+        </div>
+      </td>
+      <td class="px-4 py-2.5 text-xs text-shiplet-300 font-mono">${c.image || '—'}</td>
+      <td class="px-4 py-2.5"><span class="text-xs px-2 py-0.5 rounded ${isUp ? 'badge-running' : 'badge-stopped'}">${c.status || '—'}</span></td>
+      <td class="px-4 py-2.5 text-xs text-ink-400 font-mono">${c.ports || '—'}</td>
+      <td class="px-4 py-2.5">
+        <div class="flex gap-1 justify-center">
+          <button onclick="UI.openLogs('${c.name}')" class="btn-ghost py-1 px-2 text-xs">logs</button>
+          <button onclick="UI.containerAction('${c.name}','restart')" class="btn-ghost py-1 px-2 text-xs">↺</button>
+          ${isUp
+                        ? `<button onclick="UI.containerAction('${c.name}','stop')" class="btn-danger py-1 px-2 text-xs">stop</button>`
+                        : `<button onclick="UI.containerAction('${c.name}','start')" class="btn-primary py-1 px-2 text-xs">start</button>`}
+          <button onclick="UI.containerAction('${c.name}','remove')" class="btn-danger py-1 px-2 text-xs">rm</button>
+        </div>
+      </td>
+    </tr>`;
+            }).join('') || '<tr><td colspan="5" class="px-4 py-8 text-center text-xs text-ink-500">No containers</td></tr>';
+        }
+
+        function renderProjectCard(p) {
+            const running = p.services.filter(s => s.Status?.toLowerCase().includes('running') || s.State?.toLowerCase().includes('running')).length;
+            const total = p.services.length;
+            const rtClass = p.runtime === 'podman' ? 'badge-podman' : 'badge-docker';
+            const rtIcon = p.runtime === 'podman' ? '🦭' : '🐳';
+
+            return `<div class="card card-glow p-4 space-y-3 ${p.isActive ? 'border-shiplet-700' : ''}">
+    <div class="flex items-start justify-between">
+      <div>
+        <div class="flex items-center gap-2">
+          <h3 class="font-display font-700 text-white text-sm">${p.name}</h3>
+          ${p.isActive ? '<span class="text-xs px-1.5 py-0.5 bg-shiplet-500/10 text-shiplet-400 rounded border border-shiplet-700">active</span>' : ''}
+        </div>
+        <p class="text-xs text-ink-500 mt-0.5 truncate max-w-xs">${p.path}</p>
+      </div>
+      <span class="text-xs px-2 py-0.5 rounded ${rtClass}">${rtIcon} ${p.runtime}</span>
+    </div>
+
+    <div class="flex items-center gap-4 text-xs">
+      <span class="text-ink-400">v${p.version}</span>
+      <span class="${running > 0 ? 'text-green-400' : 'text-ink-500'}">${running}/${total} running</span>
+      ${p.config.packageManager ? `<span class="text-ink-500">${p.config.packageManager}</span>` : ''}
+      ${p.config.nodeVersion ? `<span class="text-ink-500">node${p.config.nodeVersion}</span>` : ''}
+    </div>
+
+    ${total > 0 ? `<div class="space-y-1">
+      ${p.services.map(s => {
+                const up = s.Status?.toLowerCase().includes('running') || s.State?.toLowerCase().includes('running');
+                return `<div class="flex items-center gap-2 text-xs">
+          <span class="w-1.5 h-1.5 rounded-full ${up ? 'bg-green-400' : 'bg-ink-600'}"></span>
+          <span class="text-ink-300">${s.Service || s.Name || '?'}</span>
+          <span class="ml-auto text-ink-500">${s.Status || s.State || '—'}</span>
+        </div>`;
+            }).join('')}
+    </div>` : '<p class="text-xs text-ink-600">No services running</p>'}
+
+    <div class="flex gap-2 pt-1">
+      <button onclick="UI.projectAction('${p.id}','up')" class="btn-primary py-1 px-3 text-xs">▶ Up</button>
+      <button onclick="UI.projectAction('${p.id}','down')" class="btn-ghost py-1 px-3 text-xs">■ Down</button>
+      <button onclick="UI.projectAction('${p.id}','restart')" class="btn-ghost py-1 px-3 text-xs">↺</button>
+      <button onclick="UI.projectAction('${p.id}','build')" class="btn-ghost py-1 px-3 text-xs">⚙ Build</button>
+    </div>
+  </div>`;
+        }
+
+        function renderSystemInfo(info) {
+            const el = document.getElementById('system-info');
+            if (!el) return;
+            const items = [
+                ['Version', info.version],
+                ['OS', info.os],
+                ['Arch', info.arch],
+                ['CPUs', info.cpus],
+                ['Memory', info.memory],
+                ['Root dir', info.rootDir],
+            ];
+            el.innerHTML = items.map(([k, v]) => `
+    <div class="bg-ink-900 rounded p-2.5">
+      <p class="text-ink-500 text-xs uppercase tracking-wider">${k}</p>
+      <p class="text-ink-200 text-xs mt-1 truncate font-mono">${v || '—'}</p>
+    </div>`).join('');
+        }
+
+        function renderCliRef() {
+            const cmds = [
+                ['shiplet up -d', 'Start in background'],
+                ['shiplet down', 'Stop containers'],
+                ['shiplet shell', 'Open app shell'],
+                ['shiplet logs -f', 'Follow logs'],
+                ['shiplet status', 'Show services'],
+                ['shiplet npm install', 'Install deps'],
+                ['shiplet test', 'Run tests'],
+                ['shiplet lint --fix', 'Lint & fix'],
+                ['shiplet db', 'Open DB CLI'],
+                ['shiplet release patch', 'Release patch'],
+                ['shiplet snapshot save', 'Save volumes'],
+                ['shiplet health', 'Health stats'],
+                ['shiplet runtime show', 'Show runtime'],
+                ['shiplet scale app=2', 'Scale service'],
+                ['shiplet share', 'Public tunnel'],
+            ];
+            document.getElementById('cli-ref').closest('div').querySelector('div').outerHTML;
+            document.getElementById('cli-ref').closest('.grid').innerHTML = cmds.map(([cmd, desc]) => `
+    <div class="bg-ink-900 rounded p-2.5 hover:border-shiplet-700 border border-transparent transition-colors">
+      <code class="text-shiplet-300 text-xs block">${cmd}</code>
+      <p class="text-ink-500 text-xs mt-0.5">${desc}</p>
+    </div>`).join('');
+        }
+
+        function updateRuntimeBadge() {
+            const rt = State.runtime;
+            const badge = document.getElementById('runtime-badge');
+            const label = document.getElementById('runtime-label');
+            if (!badge) return;
+            badge.className = `mt-2 inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-mono ${rt === 'podman' ? 'badge-podman' : 'badge-docker'}`;
+            label.textContent = rt;
+        }
+
+        function updateFooter() {
+            const running = State.containers.filter(c => c.status?.toLowerCase().includes('up')).length;
+            document.getElementById('footer-running').textContent = running;
+            document.getElementById('footer-total').textContent = State.containers.length;
+        }
+
+        function appendLog(line) {
+            const out = document.getElementById('log-output');
+            const follow = document.getElementById('log-follow')?.checked;
+            if (!out) return;
+            const cls = line.includes('ERR') || line.includes('error') ? 'err' :
+                line.includes('WARN') || line.includes('warn') ? 'warn' : '';
+            const div = document.createElement('div');
+            div.className = `log-line ${cls}`;
+            div.textContent = line;
+            out.appendChild(div);
+            if (follow) out.scrollTop = out.scrollHeight;
+            // Keep max 500 lines
+            while (out.children.length > 500) out.removeChild(out.firstChild);
+        }
+
+        function escHtml(s) {
+            return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+        }
+
+        function toast(msg, type = 'info') {
+            const area = document.getElementById('toast-area');
+            const colors = {
+                success: 'bg-green-900 border border-green-700 text-green-300',
+                info: 'bg-ink-800 border border-ink-700 text-ink-200',
+                error: 'bg-red-900 border border-red-700 text-red-300'
+            };
+            const el = document.createElement('div');
+            el.className = `toast ${colors[type] || colors.info}`;
+            el.textContent = msg;
+            area.appendChild(el);
+            setTimeout(() => el.remove(), 3500);
+        }
+
+        function showCmdModal(cmd) {
+            toast(`Copy and run: ${cmd}`, 'info');
+            navigator.clipboard?.writeText(cmd).then(() => toast('Copied to clipboard!', 'success'));
+        }
+
+        // ── Boot ───────────────────────────────────────────────────────────────────
+        document.addEventListener('DOMContentLoaded', () => UI.init());
+    </script>
+</body>
+
+</html>
