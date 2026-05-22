@@ -237,7 +237,7 @@ shiplet runtime switch
 
 # Check both runtimes
 shiplet runtime show    # which is active and why
-shipletlet runtime check   # binary + daemon + compose plugin status for both
+shiplet runtime check   # binary + daemon + compose plugin status for both
 ```
 
 ### Podman notes
@@ -252,9 +252,9 @@ shipletlet runtime check   # binary + daemon + compose plugin status for both
 ## Starting and Stopping
 
 ```bash
-shipletletlet up                  # Start, stream output
-shipletletlet up -d               # Start in background (detached)
-shipletlet up --build          # Rebuild images first
+shiplet up                  # Start, stream output
+shiplet up -d               # Start in background (detached)
+shiplet up --build          # Rebuild images first
 
 shiplet down                # Stop and remove containers (data volumes preserved)
 shiplet down -v             # ⚠  Also remove volumes (deletes all data)
@@ -272,20 +272,20 @@ shiplet status              # Show running containers + ports  (alias: shiplet p
 ### Node.js
 
 ```bash
-shipletlet node --version
-shipletlet node scripts/seed.js
+shiplet node --version
+shiplet node scripts/seed.js
 
-shipletlet npm install
-shipletlet npm run dev
-shipletlet npm run build
+shiplet npm install
+shiplet npm run dev
+shiplet npm run build
 
-shipletletlet yarn add lodash
-shipletlet pnpm install
+shiplet yarn add lodash
+shiplet pnpm install
 
-shipletlet npx prisma migrate dev
-shipletlet npx ts-node src/server.ts
+shiplet npx prisma migrate dev
+shiplet npx ts-node src/server.ts
 
-shipletlet exec app node -e "console.log('hello')"
+shiplet exec app node -e "console.log('hello')"
 shiplet exec redis redis-cli info
 
 shiplet shell          # bash/sh into 'app' container
