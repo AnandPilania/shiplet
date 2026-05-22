@@ -2,22 +2,23 @@
 
 const { execSync } = require('child_process');
 const chalk = require('chalk');
-const { assertDocker, findProjectRoot, resolveComposeFile, header } = require('../utils/helpers');
+const { assertRuntime, findProjectRoot, resolveComposeFile, getComposeCmd, header } = require('../utils/helpers');
 
 module.exports = function statusCommand() {
-    assertDocker();
     const root = findProjectRoot();
     if (!root) { console.error(chalk.red('\n✖  No shiplet.yml found.\n')); process.exit(1); }
 
+    const runtime = assertRuntime(root);
+    const [bin, ...baseCompose] = getComposeCmd(runtime);
+    const composeFile = resolveComposeFile(root);
+    const fileFlag = composeFile ? ['-f', composeFile] : '';
+    const fileFlagStr = composeFile ? `-f ${composeFile}` : '';
+
     header('Container Status');
 
-    const composeFile = resolveComposeFile(root);
-    const fileFlag = composeFile ? `-f ${composeFile}` : '';
-
     try {
-        const out = execSync(`docker compose ${fileFlag} ps --format "table {{.Name}}\t{{.Status}}\t{{.Ports}}"`, {
-            cwd: root, encoding: 'utf8',
-        });
+        const cmd = `${bin} ${[...baseCompose, fileFlagStr].filter(Boolean).join(' ')} ps --format "table {{.Name}}\\t{{.Status}}\\t{{.Ports}}"`;
+        const out = execSync(cmd, { cwd: root, encoding: 'utf8' });
 
         const lines = out.trim().split('\n');
         lines.forEach((line, i) => {

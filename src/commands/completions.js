@@ -14,10 +14,10 @@ const chalk = require('chalk');
 const { header, info } = require('../utils/helpers');
 
 const COMMANDS = [
-    'init', 'up', 'down', 'build', 'shell', 'exec', 'node', 'npm', 'npx',
-    'yarn', 'pnpm', 'test', 'logs', 'status', 'db', 'share', 'add',
+    'init', 'up', 'down', 'build', 'restart', 'shell', 'exec', 'node', 'npm', 'npx',
+    'yarn', 'pnpm', 'test', 'logs', 'status', 'ps', 'db', 'share', 'add',
     'publish', 'env', 'health', 'lint', 'scale', 'snapshot', 'release',
-    'runtime', 'completions', 'upgrade',
+    'runtime', 'completions', 'upgrade', 'dashboard', 'ui',
 ];
 
 const SERVICES = ['postgres', 'mysql', 'mongo', 'redis', 'mailpit', 'minio', 'elasticsearch', 'adminer'];
@@ -56,6 +56,9 @@ _shiplet_completions() {
       return ;;
     completions)
       COMPREPLY=( \$(compgen -W "bash zsh fish" -- "\$cur") )
+      return ;;
+    dashboard|ui)
+      COMPREPLY=( \$(compgen -W "--port --no-open" -- "\$cur") )
       return ;;
   esac
 
@@ -121,6 +124,10 @@ _shiplet() {
           local -a shells
           shells=('bash' 'zsh' 'fish')
           _describe 'shell' shells ;;
+        dashboard|ui)
+          local -a dash_opts
+          dash_opts=('--port' '--no-open')
+          _describe 'options' dash_opts ;;
       esac
       ;;
   esac
@@ -163,6 +170,9 @@ complete -c shiplet -f -n '__fish_seen_subcommand_from runtime' -a 'show switch 
 
 # release bumps
 complete -c shiplet -f -n '__fish_seen_subcommand_from release' -a 'patch minor major'
+
+# dashboard options
+complete -c shiplet -f -n '__fish_seen_subcommand_from dashboard ui' -a '--port --no-open'
 `.trimStart();
 }
 

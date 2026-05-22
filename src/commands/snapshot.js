@@ -18,7 +18,7 @@ const chalk = require('chalk');
 const inquirer = require('inquirer');
 const ora = require('ora');
 const {
-    assertRuntime, findProjectRoot, resolveComposeFile,
+    assertRuntime, detectRuntime, findProjectRoot, resolveComposeFile,
     header, success, info, warn, error,
 } = require('../utils/helpers');
 

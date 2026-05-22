@@ -4,7 +4,7 @@ const { spawn } = require('child_process');
 const path = require('path');
 const fs = require('fs');
 const chalk = require('chalk');
-const { assertDocker, findProjectRoot, resolveComposeFile, header } = require('../utils/helpers');
+const { assertRuntime, findProjectRoot, resolveComposeFile, getComposeCmd, header } = require('../utils/helpers');
 
 function detectTestRunner(root) {
     const pkgPath = path.join(root, 'package.json');
@@ -18,27 +18,28 @@ function detectTestRunner(root) {
         if (deps['jest']) return 'npx jest';
         if (deps['mocha']) return 'npx mocha';
         if (pkg.scripts?.test) return 'npm test';
-    } catch {/* fall through */ }
+    } catch { /* fall through */ }
 
     return 'npm test';
 }
 
 module.exports = function testCommand(extraArgs) {
-    assertDocker();
     const root = findProjectRoot();
     if (!root) { console.error(chalk.red('\n✖  No shiplet.yml found.\n')); process.exit(1); }
+
+    const runtime = assertRuntime(root);
+    const [bin, ...baseCompose] = getComposeCmd(runtime);
+    const composeFile = resolveComposeFile(root);
+    const fileFlag = composeFile ? ['-f', composeFile] : [];
 
     const runner = detectTestRunner(root);
     const fullCmd = [...runner.split(' '), ...extraArgs];
 
     header(`Running Tests  (${runner})`);
 
-    const composeFile = resolveComposeFile(root);
-    const baseArgs = composeFile ? ['-f', composeFile] : [];
-
     const proc = spawn(
-        'docker',
-        ['compose', ...baseArgs, 'exec', 'app', ...fullCmd],
+        bin,
+        [...baseCompose, ...fileFlag, 'exec', 'app', ...fullCmd],
         { cwd: root, stdio: 'inherit' }
     );
 

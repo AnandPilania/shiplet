@@ -1,8 +1,13 @@
 # 🌊 Shiplet
 
-> A lightweight, Docker-powered development environment for Node.js projects — inspired by Laravel Sail, built for the JS ecosystem.
+> A Docker/Podman-powered development environment CLI for **Node.js** and **PHP/Composer** projects — inspired by Laravel Sail, built for both ecosystems with a built-in web dashboard, release pipeline, and more.
 
-No Docker knowledge required. One command gets you a fully containerised Node app with databases, mail, object storage, and more.
+[![Tests](https://img.shields.io/badge/tests-215%20passing-brightgreen)](#testing)
+[![Coverage](https://img.shields.io/badge/coverage-80%25-green)](#testing)
+[![Node](https://img.shields.io/badge/node-%3E%3D16-brightgreen)](https://nodejs.org)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+
+No Docker expertise required. One command scaffolds a fully-containerised project with databases, mail, object storage, web dashboard, and more — for both Node.js and PHP.
 
 ---
 
@@ -10,568 +15,609 @@ No Docker knowledge required. One command gets you a fully containerised Node ap
 
 - [🌊 Shiplet](#-shiplet)
   - [Table of Contents](#table-of-contents)
-  - [Introduction](#introduction)
+  - [Features](#features)
   - [Quick Start](#quick-start)
   - [Installation](#installation)
-    - [Run via npx (zero-install)](#run-via-npx-zero-install)
-    - [Install globally](#install-globally)
-    - [Add to an existing project](#add-to-an-existing-project)
-    - [Shell alias](#shell-alias)
+    - [Zero-install via npx](#zero-install-via-npx)
+    - [Global install](#global-install)
+    - [Dev dependency](#dev-dependency)
+    - [Shell alias (recommended)](#shell-alias-recommended)
   - [Initialising a Project](#initialising-a-project)
+    - [Node.js templates](#nodejs-templates)
+    - [PHP templates](#php-templates)
+    - [Skip prompts](#skip-prompts)
+    - [Generated files — Node.js](#generated-files--nodejs)
+    - [Generated files — PHP](#generated-files--php)
+  - [Container Runtimes](#container-runtimes)
+    - [Podman notes](#podman-notes)
   - [Starting and Stopping](#starting-and-stopping)
-  - [Executing Commands](#executing-commands)
-    - [Node.js commands](#nodejs-commands)
-    - [Package manager commands](#package-manager-commands)
-    - [One-off exec](#one-off-exec)
-    - [Interactive shell](#interactive-shell)
-  - [Running Tests](#running-tests)
-  - [Working with Databases](#working-with-databases)
-    - [PostgreSQL](#postgresql)
-    - [MySQL](#mysql)
-    - [MongoDB](#mongodb)
-    - [Redis](#redis)
+  - [Running Commands](#running-commands)
+    - [Node.js](#nodejs)
+    - [PHP / Composer Support](#php--composer-support)
+      - [Composer](#composer)
+      - [PHP binary](#php-binary)
+      - [Laravel Artisan](#laravel-artisan)
+      - [Symfony Console](#symfony-console)
+      - [WP-CLI](#wp-cli)
+  - [Databases](#databases)
   - [Additional Services](#additional-services)
-    - [Mailpit (email)](#mailpit-email)
-    - [MinIO (S3)](#minio-s3)
-    - [Elasticsearch](#elasticsearch)
-    - [Adminer (DB GUI)](#adminer-db-gui)
-  - [Adding Services Post-Init](#adding-services-post-init)
-  - [Environment Variables](#environment-variables)
-  - [Container Logs](#container-logs)
-  - [Container Status](#container-status)
-  - [Sharing Your App](#sharing-your-app)
-  - [Rebuilding Images](#rebuilding-images)
-  - [Customisation (Ejecting)](#customisation-ejecting)
-  - [Node Version](#node-version)
-  - [Package Manager](#package-manager)
-  - [Project Templates](#project-templates)
-  - [Generated File Reference](#generated-file-reference)
-    - [`shiplet.yml`](#shipletyml)
-    - [`.shiplet/Dockerfile`](#shipletdockerfile)
-    - [`.env`](#env)
-  - [Requirements](#requirements)
-  - [Container Runtime (Docker \& Podman)](#container-runtime-docker--podman)
-    - [Auto-detection priority](#auto-detection-priority)
-    - [Runtime commands](#runtime-commands)
-    - [Forcing a runtime for a single command](#forcing-a-runtime-for-a-single-command)
-    - [Podman-specific notes](#podman-specific-notes)
-  - [Release Pipeline](#release-pipeline)
-    - [Basic usage](#basic-usage)
-    - [Pipeline steps](#pipeline-steps)
-    - [Dry run](#dry-run)
-    - [Flags reference](#flags-reference)
-    - [Conventional commits](#conventional-commits)
-  - [Container Health Dashboard](#container-health-dashboard)
-  - [Volume Snapshots](#volume-snapshots)
+  - [Testing](#testing)
+    - [Shiplet's own test suite](#shiplets-own-test-suite)
   - [Linting](#linting)
-  - [Scaling Services](#scaling-services)
-  - [shiplet.config.json](#shipletconfigjson)
   - [Web Dashboard](#web-dashboard)
-    - [Dashboard sections](#dashboard-sections)
-    - [Options](#options)
-    - [Live updates](#live-updates)
+    - [Sections](#sections)
+  - [Logs](#logs)
+  - [Container Management](#container-management)
+  - [Volume Snapshots](#volume-snapshots)
+    - [Steps](#steps)
+    - [Flags](#flags)
+    - [Conventional commits → changelog](#conventional-commits--changelog)
+  - [Environment Variables](#environment-variables)
+  - [Health \& Diagnostics](#health--diagnostics)
+    - [Doctor](#doctor)
+    - [Prune](#prune)
+  - [Sharing Your App](#sharing-your-app)
+  - [Customisation](#customisation)
   - [Examples](#examples)
     - [`examples/express-docker`](#examplesexpress-docker)
     - [`examples/fastify-podman`](#examplesfastify-podman)
-    - [Running either example with the other runtime](#running-either-example-with-the-other-runtime)
+    - [`examples/laravel-docker`](#exampleslaravel-docker)
+    - [`examples/symfony-podman`](#examplessymfony-podman)
+  - [CLI Reference](#cli-reference)
+  - [Configuration Reference](#configuration-reference)
+    - [`shiplet.config.json`](#shipletconfigjson)
+    - [Environment overrides](#environment-overrides)
+  - [Requirements](#requirements)
   - [License](#license)
+  - [Vite Projects](#vite-projects)
+    - [Supported Vite templates](#supported-vite-templates)
+    - [Critical vite.config setting](#critical-viteconfig-setting)
+  - [Bun Projects](#bun-projects)
+    - [Bun commands](#bun-commands)
+    - [Supported Bun templates](#supported-bun-templates)
+    - [Bun version](#bun-version)
 
 ---
 
-## Introduction
+## Features
 
-Shiplet is a CLI tool that wraps Docker Compose into a set of simple, memorable commands purpose-built for Node.js development. It is the spiritual equivalent of [Laravel Sail](https://laravel.com/docs/sail) for PHP, but designed with the Node.js ecosystem in mind:
-
-- Supports **npm, yarn, and pnpm** out of the box
-- **Auto-detects** your test runner (jest, vitest, mocha)
-- **Auto-detects** which database CLI to open (`shiplet db`)
-- Works with **Express, Fastify, NestJS, Next.js, Nuxt, T3** via built-in templates
-- Includes an **`env` command** for full `.env` management
-- Can **tunnel your local app** to the internet with `shiplet share`
-- Runs via **`npx`** — no global install needed
-
-At its core, Shiplet is a `shiplet.yml` (Docker Compose) file and a thin CLI wrapper. You can eject the Dockerfiles at any time with `shiplet publish` for full control.
-
-Shiplet is supported on **macOS, Linux, and Windows (via WSL2)**.
+|     | Feature               | Details                                                                        |
+| --- | --------------------- | ------------------------------------------------------------------------------ |
+| 🟢   | **Node.js + PHP**     | Express, Fastify, NestJS, Next.js, Nuxt, Laravel, Symfony, WordPress, and more |
+| 🐳 🦭 | **Docker + Podman**   | Auto-detected at startup; switch instantly with `shiplet runtime switch`       |
+| 🖥️   | **Web Dashboard**     | Live metrics, log streaming, env editor, prune UI at `http://localhost:6171`   |
+| 🚀   | **Release Pipeline**  | Semver bump → changelog → git tag → container build → push → npm publish       |
+| 🔬   | **Doctor**            | Full environment diagnostic before you hit a wall                              |
+| 💾   | **Snapshots**         | Named volume backups and restores — share dev databases with your team         |
+| 🧹   | **Prune**             | Clean up containers / images / volumes interactively                           |
+| 📋   | **Shell Completions** | Tab completions for bash, zsh, fish                                            |
+| 🧪   | **215 Tests**         | Full Jest suite — unit + integration, 80% coverage                             |
 
 ---
 
 ## Quick Start
 
 ```bash
-# In a new or existing Node.js project:
+# Node.js
+cd my-node-app
 npx shiplet init
-
-# Start everything
 shiplet up -d
+shipletlet npm install
+shipletletlet logs -f
 
-# Install your npm deps inside the container
-shiplet npm install
-
-# Open a shell
-shiplet shell
-
-# Run your tests
-shiplet test
+# PHP / Laravel (auto-detected)
+cd my-laravel-app
+npx shiplet init
+shipletletlet up -d
+shiplet composer install
+shiplet artisan migrate
+shiplet dashboard           # → http://localhost:6171
 ```
 
 ---
 
 ## Installation
 
-### Run via npx (zero-install)
-
-The fastest way to initialise Shiplet in any project — no global install needed:
+### Zero-install via npx
 
 ```bash
 npx shiplet init
 ```
 
-After init, all subsequent `shiplet` commands are available through `./node_modules/.bin/shiplet` (if added as a dev dep) or globally.
-
-### Install globally
+### Global install
 
 ```bash
 npm install -g shiplet
-# or
-yarn global add shiplet
-# or
-pnpm add -g shiplet
 ```
 
-### Add to an existing project
+### Dev dependency
 
 ```bash
 npm install --save-dev shiplet
-npx shiplet init
 ```
 
-### Shell alias
+### Shell alias (recommended)
 
-To avoid typing `./node_modules/.bin/shiplet` every time, add an alias to your shell config (`~/.zshrc` or `~/.bashrc`):
+Add to `~/.zshrc` or `~/.bashrc`:
 
 ```bash
 alias shiplet='npx shiplet'
 ```
 
-Or if installed locally in every project:
-
-```bash
-alias shiplet='./node_modules/.bin/shiplet'
-```
-
-Restart your shell, then you can simply type `shiplet up`, `shiplet shell`, etc.
-
 ---
 
 ## Initialising a Project
-
-Run the interactive setup wizard:
 
 ```bash
 shiplet init
 ```
 
-You will be prompted to choose:
+The interactive wizard detects your language, framework, package manager, and existing lock files automatically. Answer the prompts and Shiplet writes everything you need.
 
-| Option              | Description                                                                              |
-| ------------------- | ---------------------------------------------------------------------------------------- |
-| **App name**        | Used as the Docker Compose project name                                                  |
-| **Template**        | `express`, `fastify`, `nestjs`, `nextjs`, `nuxt`, `t3`, or `blank`                       |
-| **Node version**    | `22`, `20`, or `18` (inside the container)                                               |
-| **Package manager** | `npm`, `yarn`, or `pnpm` (auto-detected from lock files)                                 |
-| **Port**            | The host port your app will be accessible on                                             |
-| **Services**        | Any combination of postgres, mysql, mongo, redis, mailpit, minio, elasticsearch, adminer |
-| **Timezone**        | Container timezone (default: UTC)                                                        |
+### Node.js templates
 
-To skip all prompts and use defaults:
+| Template  | Description                                |
+| --------- | ------------------------------------------ |
+| `express` | Express.js REST API                        |
+| `fastify` | Fastify with plugins                       |
+| `nestjs`  | NestJS with TypeScript                     |
+| `nextjs`  | Next.js (App Router)                       |
+| `nuxt`    | Nuxt 3                                     |
+| `t3`      | T3 Stack (Next + tRPC + Prisma + Tailwind) |
+| `blank`   | Bare Node.js                               |
+
+**Package managers:** npm · yarn · pnpm — auto-detected from lock files.
+
+### PHP templates
+
+| Template    | Description                                            |
+| ----------- | ------------------------------------------------------ |
+| `laravel`   | Laravel 11 — Artisan, queues, scheduler via Supervisor |
+| `symfony`   | Symfony 7 — console commands, Doctrine                 |
+| `wordpress` | WordPress + WP-CLI                                     |
+| `slim`      | Slim Framework 4                                       |
+| `lumen`     | Lumen micro-framework                                  |
+| `blank`     | Vanilla PHP                                            |
+
+**PHP versions:** 8.3 · 8.2 · 8.1 · 8.0
+**Web servers:** nginx (recommended) · apache
+
+### Skip prompts
 
 ```bash
+# Node.js defaults
 shiplet init --yes
 shiplet init --template nestjs --yes
+
+# PHP with specific options
+shiplet init --language php --template laravel --php-version 8.3 --yes
+shipletlet init --language php --template symfony --runtime podman --yes
 ```
 
-After init, Shiplet creates:
+### Generated files — Node.js
 
 ```
-your-project/
-├── shiplet.yml              ← Docker Compose file (edit freely)
-├── .env                  ← Environment variables (added to existing .env)
-└── .shiplet/
-    └── Dockerfile        ← App container Dockerfile
+shiplet.yml            ← Docker Compose file
+shiplet.config.json    ← Shipletproject config
+.shiplet/
+  Dockerfile        ← App container
+.env                ← Environment variables
 ```
+
+### Generated files — PHP
+
+```
+shiplet.yml            ← Docker Compose (FPM + nginx/apache + services)
+shiplet.config.json    ← Shipletproject config
+.shiplet/
+  Dockerfile                    ← PHP-FPM container (php-ext, Composer, WP-CLI)
+  nginx/default.conf            ← Nginx vhost with correct document root
+  php/php.ini                   ← Development-optimised PHP config
+  supervisor/supervisord.conf   ← Queue workers + scheduler (Laravel only)
+.env                ← Framework-aware env vars
+```
+
+---
+
+## Container Runtimes
+
+Shiplet supports both **Docker** and **Podman** — the runtime is resolved in this priority order:
+
+1. `SHIPLET_RUNTIME` environment variable
+2. `runtime` field in `shiplet.config.json`
+3. Auto-detect: Podman wins if available and running, otherwise Docker
+
+```bash
+# Override for one command
+SHIPLET_RUNTIME=podman shiplet up -d
+SHIPLET_RUNTIME=docker shiplet build
+
+# Permanently switch (writes shiplet.config.json)
+shiplet runtime switch
+
+# Check both runtimes
+shiplet runtime show    # which is active and why
+shipletlet runtime check   # binary + daemon + compose plugin status for both
+```
+
+### Podman notes
+
+- Rootless by default — no daemon, no root required
+- Requires `podman compose` (bundled in Podman ≥ 4.7) or `podman-compose`
+- Install: `pip3 install podman-compose` or update Podman
+- If you see volume permission errors: `podman system migrate`
 
 ---
 
 ## Starting and Stopping
 
-Start all containers defined in `shiplet.yml`:
-
 ```bash
-shiplet up
-```
+shipletletlet up                  # Start, stream output
+shipletletlet up -d               # Start in background (detached)
+shipletlet up --build          # Rebuild images first
 
-Start in detached (background) mode:
+shiplet down                # Stop and remove containers (data volumes preserved)
+shiplet down -v             # ⚠  Also remove volumes (deletes all data)
 
-```bash
-shiplet up -d
-```
+shiplet build               # Rebuild images
+shiplet build --no-cache    # Full rebuild without layer cache
 
-Start and force a rebuild of images first:
-
-```bash
-shiplet up --build
-```
-
-Once running, your app is accessible at `http://localhost:3000` (or whichever port you chose).
-
-Stop all containers (containers are removed, data volumes are preserved):
-
-```bash
-shiplet down
-```
-
-Stop and **destroy all volumes** (this deletes database data — use with caution):
-
-```bash
-shiplet down -v
+shiplet status              # Show running containers + ports  (alias: shiplet ps)
 ```
 
 ---
 
-## Executing Commands
+## Running Commands
 
-When using Shiplet, your application runs inside a Docker container. Shiplet provides shortcuts to run common commands without leaving your terminal.
-
-### Node.js commands
+### Node.js
 
 ```bash
-# Check the Node version inside the container
-shiplet node --version
+shipletlet node --version
+shipletlet node scripts/seed.js
 
-# Run a script
-shiplet node scripts/seed.js
-```
+shipletlet npm install
+shipletlet npm run dev
+shipletlet npm run build
 
-### Package manager commands
+shipletletlet yarn add lodash
+shipletlet pnpm install
 
-Shiplet proxies all package manager commands into the `app` container:
+shipletlet npx prisma migrate dev
+shipletlet npx ts-node src/server.ts
 
-```bash
-# npm
-shiplet npm install
-shiplet npm run dev
-shiplet npm run build
-
-# yarn
-shiplet yarn
-shiplet yarn add express
-
-# pnpm
-shiplet pnpm install
-shiplet pnpm add fastify
-
-# npx (inside the container)
-shiplet npx prisma migrate dev
-shiplet npx ts-node src/server.ts
-```
-
-### One-off exec
-
-Run any command inside any running container:
-
-```bash
-shiplet exec app node -e "console.log('hello')"
+shipletlet exec app node -e "console.log('hello')"
 shiplet exec redis redis-cli info
-shiplet exec postgres psql -U shiplet -d app
-```
 
-### Interactive shell
-
-Open a `bash` shell inside the app container (falls back to `sh` if bash is unavailable):
-
-```bash
-shiplet shell
-```
-
-Open a shell in a different service:
-
-```bash
+shiplet shell          # bash/sh into 'app' container
 shiplet shell postgres
-shiplet shell redis
+```
+
+### PHP / Composer Support
+
+#### Composer
+
+```bash
+shiplet composer install
+shiplet composer require laravel/sanctum
+shiplet composer update
+shiplet composer dump-autoload
+shiplet composer show --installed
+```
+
+#### PHP binary
+
+```bash
+shiplet php --version
+shiplet php -r "echo phpversion();"
+shiplet php scripts/seed.php
+```
+
+#### Laravel Artisan
+
+```bash
+shiplet artisan migrate
+shiplet artisan migrate:fresh --seed
+shiplet artisan key:generate
+shiplet artisan make:model Product -mcr
+shiplet artisan queue:work
+shiplet artisan schedule:work
+shiplet artisan tinker
+shiplet artisan route:list
+shiplet artisan config:cache
+```
+
+#### Symfony Console
+
+```bash
+shiplet console doctrine:migrations:migrate
+shiplet console make:entity Product
+shiplet console cache:clear
+shiplet console debug:router
+shiplet console assets:install
+```
+
+#### WP-CLI
+
+```bash
+shiplet wp --info
+shiplet wp plugin install woocommerce --activate
+shiplet wp theme list
+shiplet wp post list
+shiplet wp user create admin admin@example.com --role=administrator
 ```
 
 ---
 
-## Running Tests
-
-Shiplet automatically detects your test runner by inspecting `devDependencies` in `package.json`:
-
-| Detected dependency   | Command used     |
-| --------------------- | ---------------- |
-| `vitest`              | `npx vitest run` |
-| `jest`                | `npx jest`       |
-| `mocha`               | `npx mocha`      |
-| *(none of the above)* | `npm test`       |
+## Databases
 
 ```bash
-# Run all tests
-shiplet test
-
-# Pass flags through to your test runner
-shiplet test --coverage
-shiplet test --watch
-shiplet test src/user.test.ts
+shiplet db               # Auto-detect running DB and open CLI
+shiplet db postgres      # → psql
+shiplet db mysql         # → mysql CLI
+shiplet db mongo         # → mongosh
+shiplet db redis         # → redis-cli
+shiplet db mariadb       # → mysql CLI
 ```
-
----
-
-## Working with Databases
-
-### PostgreSQL
-
-When Postgres is enabled, it runs in the `postgres` service. Your app connects to it at the host `postgres` (the Docker service name) on port `5432`.
-
-To connect from your machine (e.g. TablePlus or psql):
-
-- **Host:** `localhost`
-- **Port:** `5432` (or `POSTGRES_PORT` from `.env`)
-- **User / Password / DB:** as set in `.env`
-
-Open the Postgres CLI inside the container:
-
-```bash
-shiplet db postgres
-# or simply (auto-detected):
-shiplet db
-```
-
-### MySQL
-
-MySQL runs in the `mysql` service. Connect your app using host `mysql`, port `3306`.
-
-```bash
-shiplet db mysql
-# or:
-shiplet db
-```
-
-### MongoDB
-
-MongoDB runs in the `mongo` service. Your `MONGODB_URI` in `.env` is pre-configured to point at `mongo:27017`.
-
-```bash
-shiplet db mongo
-# or:
-shiplet db
-```
-
-### Redis
-
-Redis runs in the `redis` service. Connect your app using `redis://redis:6379`.
-
-```bash
-shiplet db redis
-# or:
-shiplet db
-```
-
-> **Tip:** `shiplet db` with no argument auto-detects the first running database service.
 
 ---
 
 ## Additional Services
 
-### Mailpit (email)
-
-Mailpit intercepts all outgoing SMTP mail from your app and displays it in a web UI — no real emails are sent during development.
-
-- **SMTP host/port:** `mailpit:1025`
-- **Web UI:** http://localhost:8025
-
-Configure your mailer (e.g. Nodemailer):
-
-```js
-const transporter = nodemailer.createTransport({
-  host: process.env.SMTP_HOST,   // mailpit
-  port: process.env.SMTP_PORT,   // 1025
-});
-```
-
-### MinIO (S3)
-
-MinIO provides an S3-compatible object storage API for local development.
-
-- **API endpoint:** `http://minio:9000` (from inside containers), `http://localhost:9000` (from host)
-- **Console UI:** http://localhost:9001
-
-Configure the AWS SDK:
-
-```js
-const s3 = new S3Client({
-  endpoint: process.env.S3_ENDPOINT,  // http://minio:9000
-  region: 'us-east-1',
-  credentials: {
-    accessKeyId: process.env.S3_ACCESS_KEY,
-    secretAccessKey: process.env.S3_SECRET_KEY,
-  },
-  forcePathStyle: true,
-});
-```
-
-### Elasticsearch
-
-Elasticsearch runs with security disabled for local development. Access it at `http://elasticsearch:9200` from your app or `http://localhost:9200` from your host.
-
-### Adminer (DB GUI)
-
-Adminer is a lightweight browser-based database manager.
-
-- **URL:** http://localhost:8080
-- Works with PostgreSQL, MySQL, MongoDB, and more.
-
----
-
-## Adding Services Post-Init
-
-You can add more services to an existing Shiplet project at any time:
-
 ```bash
-# Interactive picker
-shiplet add
-
-# Add specific services directly
-shiplet add redis mailpit
+shiplet add                          # Interactive picker
+shiplet add redis mailpit            # Add specific services
 shiplet add elasticsearch adminer
 ```
 
-Available services: `postgres`, `mysql`, `mongo`, `redis`, `mailpit`, `minio`, `elasticsearch`, `adminer`
+| Service         | Image              | Purpose                              |
+| --------------- | ------------------ | ------------------------------------ |
+| `postgres`      | postgres:16-alpine | PostgreSQL 16                        |
+| `mysql`         | mysql:8.0          | MySQL 8                              |
+| `mongo`         | mongo:7            | MongoDB 7                            |
+| `redis`         | redis:7-alpine     | Redis 7                              |
+| `mailpit`       | axllent/mailpit    | Email preview (SMTP trap)            |
+| `minio`         | minio/minio        | S3-compatible object storage         |
+| `elasticsearch` | elasticsearch:8    | Full-text search                     |
+| `adminer`       | adminer            | Database web GUI                     |
+| `phpmyadmin`    | phpmyadmin         | MySQL/MariaDB web GUI (PHP projects) |
 
-After adding services, rebuild and restart:
+After adding services, rebuild:
 
 ```bash
 shiplet up --build
+```
+
+---
+
+## Testing
+
+```bash
+shiplet test                   # Auto-detects runner
+shiplet test --coverage
+shiplet test --watch
+shiplet test src/user.test.ts
+```
+
+**Detection order:** vitest → jest → mocha → tap → npm test
+
+### Shiplet's own test suite
+
+```bash
+npm test                    # All tests + coverage report
+npm run test:unit           # Unit tests only
+npm run test:integration    # Integration tests only
+npm run test:watch          # Watch mode
+```
+
+**215 tests, 6 files, ~80% coverage:**
+
+```
+tests/
+├── unit/
+│   ├── helpers.test.js           (22 tests)  Core utilities
+│   ├── helpers-extended.test.js  (40 tests)  Runtime, output, cache
+│   ├── templates-node.test.js    (35 tests)  Node.js templates
+│   ├── templates-php.test.js     (52 tests)  PHP templates + all frameworks
+│   └── release-semver.test.js    (30 tests)  Semver + conventional commits
+└── integration/
+    └── init-generation.test.js   (41 tests)  Full file generation E2E
+```
+
+---
+
+## Linting
+
+```bash
+shiplet lint           # Run all detected linters
+shiplet lint --fix     # Auto-fix where possible
+```
+
+**Auto-detected (in order):**
+
+| Tool       | Detected by                                         |
+| ---------- | --------------------------------------------------- |
+| Biome      | `biome.json` or `devDependencies["@biomejs/biome"]` |
+| OXLint     | `devDependencies["oxlint"]`                         |
+| ESLint     | `.eslintrc*`, `eslint.config.*`                     |
+| Prettier   | `.prettierrc*`, `prettier.config.*`                 |
+| TypeScript | `tsconfig.json` → runs `tsc --noEmit`               |
+
+---
+
+## Web Dashboard
+
+```bash
+shiplet dashboard           # Launch at http://localhost:6171
+shiplet ui                  # Alias
+
+shiplet dashboard --port 8080     # Custom port
+shiplet dashboard --no-open       # Don't auto-open browser
+SHIPLET_UI_PORT=9000 shiplet dashboard
+```
+
+### Sections
+
+| Section         | What you can do                                                      |
+| --------------- | -------------------------------------------------------------------- |
+| **Overview**    | Live CPU%, memory bars, net I/O per container; system info           |
+| **Projects**    | All shiplet projects on your machine — Up / Down / Build per project |
+| **Containers**  | Full list with search, start / stop / restart / remove per container |
+| **Images**      | Image inventory, per-image delete, prune dangling                    |
+| **Volumes**     | Volume list, per-volume delete, prune unused                         |
+| **Networks**    | Network list, prune unused                                           |
+| **Logs**        | Live WebSocket log streaming — select any container, follow toggle   |
+| **Release**     | Visual release wizard with commit breakdown and copy-to-clipboard    |
+| **Environment** | Per-project `.env` editor — add / edit / delete keys inline          |
+| **Prune**       | One-click cleanup cards for every resource type                      |
+| **Settings**    | Runtime switcher, CLI quick-reference (click to copy)                |
+
+Stats update every **3 seconds** via WebSocket. Log streaming is instant.
+
+---
+
+## Logs
+
+```bash
+shiplet logs                  # All services, last 100 lines
+shiplet logs -f               # Follow all logs
+shiplet logs app              # One service
+shiplet logs -f nginx         # Follow nginx
+shiplet logs -n 200 app       # Last 200 lines
+```
+
+---
+
+## Container Management
+
+```bash
+# Port mappings
+shiplet port                  # All services
+shiplet port nginx            # One service
+shiplet port --check          # Warn about host-port conflicts
+
+# Live process table (refreshes every 2 s)
+shiplet top                   # Auto-pick container
+shiplet top app               # Specific service
+shiplet top --once            # Print once, exit
+
+# Scale replicas
+shiplet scale app=3
+shiplet scale app=2 worker=4
+
+# Copy files  (use service:path notation)
+shiplet cp app:/var/www/html/storage/logs/app.log ./app.log
+shiplet cp ./config/local.json app:/var/www/html/config/
+shiplet cp postgres:/var/lib/postgresql/data/pg_hba.conf .
+
+# Health dashboard
+shiplet health                # One-shot
+shiplet health --watch        # Refresh every 3 s
+```
+
+---
+
+## Volume Snapshots
+
+```bash
+shiplet snapshot save before-migration      # Backup all volumes
+shiplet snapshot list                       # List saved snapshots
+shiplet snapshot restore before-migration  # Restore (interactive picker if omitted)
+shiplet snapshot delete before-migration   # Delete a snapshot
+```
+
+Stored in `.shiplet/snapshots/` as compressed tarballs — one file per volume. Works with both Docker and Podman.
+
+### Steps
+
+1. Pre-flight checks (git repo, clean tree, on main/master, package.json)
+2. Test suite (inside container)
+3. Version bump (`package.json` + `package-lock.json`)
+4. `CHANGELOG.md` — generated from conventional commits since last tag
+5. `git commit` + annotated `git tag`
+6. Container image build (tagged with version)
+7. `git push --tags`
+8. `npm publish` (opt-in with `--publish`)
+
+### Flags
+
+```bash
+--dry-run          Simulate without mutations
+--yes              Skip confirmation
+--force            Ignore branch/clean-tree checks
+--pre <tag>        Pre-release suffix (alpha, beta, rc)
+--skip-tests       Skip test run
+--skip-build       Skip container rebuild
+--skip-push        Skip git push
+--publish          Also npm publish
+--access <level>   public | restricted
+```
+
+### Conventional commits → changelog
+
+```
+feat(api): add pagination       → 🚀 Features
+fix(db): null result crash      → 🐛 Bug Fixes
+perf(cache): use LRU            → ⚡ Performance
+docs: update README             → 📝 Documentation
+feat!: redesign public API      → 💥 Breaking Changes
+chore: bump dependencies        → 🔨 Chores
+ci: update pipeline             → 🤖 CI/CD
 ```
 
 ---
 
 ## Environment Variables
 
-Shiplet includes a full `.env` management command.
-
 ```bash
-# List all variables
-shiplet env list
-
-# Get a single variable
-shiplet env get DATABASE_URL
-
-# Set a variable
-shiplet env set NODE_ENV production
-shiplet env set DATABASE_URL=postgresql://shiplet:secret@postgres:5432/app
-
-# Remove a variable
-shiplet env unset OLD_KEY
-
-# Sync missing keys from .env.example → .env
-shiplet env sync
-```
-
-The `sync` action is particularly useful after pulling changes from git where `.env.example` has new keys.
-
----
-
-## Container Logs
-
-```bash
-# Tail the last 100 lines from all services
-shiplet logs
-
-# Follow (stream) logs in real time
-shiplet logs -f
-
-# Tail a specific service
-shiplet logs app
-shiplet logs postgres
-
-# Show the last 50 lines
-shiplet logs -n 50 app
+shiplet env list                      # All .env variables
+shiplet env get DATABASE_URL          # One variable
+shiplet env set NODE_ENV production   # Set variable
+shiplet env set KEY=value             # Alternative syntax
+shiplet env unset OLD_KEY             # Remove variable
+shiplet env sync                      # Sync from .env.example → .env
 ```
 
 ---
 
-## Container Status
+## Health & Diagnostics
+
+### Doctor
 
 ```bash
-shiplet status
-# or the alias:
-shiplet ps
+shiplet doctor
 ```
 
-Displays a colourised table of all services, their status, and port mappings:
+Checks: Node.js version · Docker/Podman install + daemon · compose plugin · `shiplet.yml` syntax · `package.json` validity · `.env` vs `.env.example` completeness · port conflicts · disk space · dangling images.
 
-```
-  NAME              STATUS         PORTS
-  myapp-app-1       running (Up)   0.0.0.0:3000->3000/tcp
-  myapp-postgres-1  running (Up)   0.0.0.0:5432->5432/tcp
-  myapp-redis-1     running (Up)   0.0.0.0:6379->6379/tcp
+### Prune
+
+```bash
+shiplet prune                   # Interactive picker
+shiplet prune containers        # Remove stopped containers
+shiplet prune images            # Remove dangling images
+shiplet prune volumes           # Remove unused volumes
+shiplet prune networks          # Remove unused networks
+shiplet prune all               # System prune — everything unused
+shiplet prune images --force    # Skip confirmation
 ```
 
 ---
 
 ## Sharing Your App
 
-Expose your local app to the internet using a secure tunnel:
-
 ```bash
-shiplet share
-```
-
-This uses [localtunnel](https://theboroer.github.io/localtunnel-www/) and outputs a public URL that anyone can visit.
-
-```bash
-# Specify a port (default: 3000)
-shiplet share --port 4000
-
-# Request a specific subdomain
-shiplet share --subdomain my-demo
-```
-
-Press `Ctrl+C` to stop sharing.
-
----
-
-## Rebuilding Images
-
-After changing `Node version`, `package manager`, or editing `.shiplet/Dockerfile`:
-
-```bash
-shiplet build
-```
-
-Force a full rebuild without cache (useful after system package changes):
-
-```bash
-shiplet build --no-cache
-```
-
-Or rebuild on the next `up`:
-
-```bash
-shiplet up --build
+shiplet share                         # Tunnel port 3000 via localtunnel
+shiplet share --port 4000             # Custom port
+shiplet share --subdomain my-demo     # Request subdomain
 ```
 
 ---
 
-## Customisation (Ejecting)
-
-Shiplet ships with a ready-made Dockerfile stored in `.shiplet/Dockerfile`. To gain full control, eject it to your project root:
+## Customisation
 
 ```bash
-shiplet publish
+shiplet publish    # Eject .shiplet/Dockerfile → docker/Dockerfile
 ```
-
-This copies the Dockerfile to `docker/Dockerfile`. You can then edit it freely — add system packages, change the base image, install global tools, etc.
 
 Update `shiplet.yml` to point at the ejected file:
 
@@ -583,437 +629,296 @@ services:
       dockerfile: docker/Dockerfile
 ```
 
-Since Shiplet is just Docker Compose under the hood, **any valid Compose configuration works** in `shiplet.yml`.
-
----
-
-## Node Version
-
-The Node.js version is set at build time via a Docker build argument. To change it, update `shiplet.yml`:
-
-```yaml
-services:
-  app:
-    build:
-      args:
-        NODE_VERSION: "22"   # or "20", "18"
-```
-
-Then rebuild:
-
-```bash
-shiplet build --no-cache
-shiplet up
-```
-
----
-
-## Package Manager
-
-The package manager is also baked into the image via `corepack`. To change it, update `shiplet.yml`:
-
-```yaml
-services:
-  app:
-    build:
-      args:
-        PACKAGE_MANAGER: "pnpm"   # npm | yarn | pnpm
-```
-
-Rebuild the image after changing this.
-
----
-
-## Project Templates
-
-When running `shiplet init`, you can select a project template:
-
-| Template  | Description                                      |
-| --------- | ------------------------------------------------ |
-| `blank`   | Bare Node.js container, no framework scaffolding |
-| `express` | Express.js with a minimal app structure          |
-| `fastify` | Fastify with plugins pre-configured              |
-| `nestjs`  | NestJS with TypeScript                           |
-| `nextjs`  | Next.js (App Router)                             |
-| `nuxt`    | Nuxt 3                                           |
-| `t3`      | T3 stack (Next.js + tRPC + Prisma + Tailwind)    |
-
-Or pass via CLI flag:
-
-```bash
-npx shiplet init --template nestjs
-```
-
----
-
-## Generated File Reference
-
-### `shiplet.yml`
-
-The Docker Compose file for your project. Edit it directly to customise ports, add environment variables, mount extra volumes, or add any service available on Docker Hub.
-
-### `.shiplet/Dockerfile`
-
-The Dockerfile for your `app` container. Contains the base Node image, timezone setup, and package manager initialisation. Eject with `shiplet publish` for full control.
-
-### `.env`
-
-Shiplet appends its required variables to your `.env` file on init. Variables are namespaced to avoid collisions with your existing config.
-
----
-
-## Requirements
-
-- **Docker Desktop** (macOS / Windows) or **Docker Engine + Compose plugin** (Linux) — [install here](https://docs.docker.com/get-docker/)
-- **Node.js ≥ 16** on the host (only needed to run the `shiplet` CLI itself — your app runs inside the container)
-
----
-
-## Container Runtime (Docker & Podman)
-
-Shiplet supports both **Docker** and **Podman** as container runtimes. The runtime is auto-detected at startup — no configuration needed unless you want to pin one explicitly.
-
-### Auto-detection priority
-
-1. `SHIPLET_RUNTIME=docker` or `SHIPLET_RUNTIME=podman` environment variable
-2. `runtime` field in `shiplet.config.json` (set by `shiplet init` or `shiplet runtime switch`)
-3. Auto-detect: Podman wins if available and running, otherwise Docker
-
-### Runtime commands
-
-```bash
-# Show which runtime is active and why
-shiplet runtime show
-
-# Interactively switch between docker and podman
-shiplet runtime switch
-
-# Validate both runtimes — checks binary, daemon, and compose plugin
-shiplet runtime check
-```
-
-### Forcing a runtime for a single command
-
-```bash
-SHIPLET_RUNTIME=podman shiplet up -d
-SHIPLET_RUNTIME=docker shiplet build --no-cache
-```
-
-### Podman-specific notes
-
-Shiplet uses `podman compose` (bundled in Podman ≥ 4.7) or falls back to the standalone `podman-compose` package. Install it with:
-
-```bash
-pip3 install podman-compose
-# or update Podman to ≥ 4.7
-```
-
-Rootless Podman is fully supported. If you see permission errors on volume mounts, ensure your user has the correct subuid/subgid mappings:
-
-```bash
-podman system migrate
-```
-
----
-
-## Release Pipeline
-
-`shiplet release` is a complete, opinionated release pipeline that handles everything from pre-flight checks to git tagging and npm publishing.
-
-### Basic usage
-
-```bash
-# Bump patch version (1.0.0 → 1.0.1)
-shiplet release
-
-# Bump minor version (1.0.0 → 1.1.0)
-shiplet release minor
-
-# Bump major version (1.0.0 → 2.0.0)
-shiplet release major
-
-# Explicit version
-shiplet release 2.4.0
-
-# Pre-release tag (1.0.0 → 1.0.1-beta.0)
-shiplet release patch --pre beta
-
-# Release candidate
-shiplet release minor --pre rc
-```
-
-### Pipeline steps
-
-Every `shiplet release` runs these steps in order:
-
-| Step                  | Description                                                                      |
-| --------------------- | -------------------------------------------------------------------------------- |
-| **Pre-flight checks** | Git repo exists, clean working tree, on main/master branch, package.json present |
-| **Tests**             | Runs your test suite inside the container (auto-detects jest/vitest/mocha)       |
-| **Version bump**      | Updates `package.json` (and `package-lock.json`) to the new version              |
-| **Changelog**         | Generates/prepends `CHANGELOG.md` from conventional commits since the last tag   |
-| **Git commit + tag**  | `git commit -m "chore(release): vX.Y.Z"` and `git tag -a vX.Y.Z`                 |
-| **Image build**       | Rebuilds your container image tagged with the new version                        |
-| **Git push**          | `git push && git push --tags`                                                    |
-| **npm publish**       | *(optional, with `--publish`)* Runs `npm publish`                                |
-
-### Dry run
-
-See exactly what would happen without changing anything:
-
-```bash
-shiplet release minor --dry-run
-```
-
-Output includes a full changelog preview, version diff, and step-by-step simulation.
-
-### Flags reference
-
-| Flag             | Description                                    |
-| ---------------- | ---------------------------------------------- |
-| `--dry-run`      | Simulate without mutations                     |
-| `--yes`          | Skip confirmation prompt                       |
-| `--force`        | Skip branch + clean-tree enforcement           |
-| `--pre <tag>`    | Add pre-release suffix (`alpha`, `beta`, `rc`) |
-| `--skip-tests`   | Skip the test suite                            |
-| `--skip-build`   | Skip container image rebuild                   |
-| `--skip-push`    | Skip `git push`                                |
-| `--publish`      | Also run `npm publish`                         |
-| `--access <lvl>` | npm publish access: `public` or `restricted`   |
-
-### Conventional commits
-
-The changelog generator parses [Conventional Commits](https://www.conventionalcommits.org/):
-
-```
-feat(auth): add OAuth2 login          → 🚀 Features
-fix(db): handle null result           → 🐛 Bug Fixes
-perf(cache): use LRU eviction         → ⚡ Performance
-refactor(api): simplify middleware    → ♻️  Refactoring
-docs: update README                   → 📝 Documentation
-feat!: redesign public API            → 💥 Breaking Changes
-```
-
-Non-conventional commits are grouped under **📌 Other**.
-
----
-
-## Container Health Dashboard
-
-```bash
-# One-shot health view
-shiplet health
-
-# Auto-refresh every 3 seconds
-shiplet health --watch
-```
-
-Displays a live table with per-service:
-- **Status** (running/starting/unhealthy — colour-coded)
-- **CPU %** (green < 40%, yellow < 80%, red > 80%)
-- **Memory usage** (current / limit)
-- **Port mappings**
-
----
-
-## Volume Snapshots
-
-Back up and restore named Docker/Podman volumes at any time — useful before destructive migrations or sharing a dev database state with a colleague.
-
-```bash
-# Save a named snapshot of all volumes
-shiplet snapshot save before-migration
-
-# List all snapshots
-shiplet snapshot list
-
-# Restore a snapshot (interactive picker if name omitted)
-shiplet snapshot restore before-migration
-
-# Delete a snapshot
-shiplet snapshot delete before-migration
-```
-
-Snapshots are stored in `.shiplet/snapshots/` as compressed tarballs. Each volume gets its own file: `<snapshot-name>-<volume-name>.tar.gz`.
-
----
-
-## Linting
-
-```bash
-# Run all detected linters
-shiplet lint
-
-# Run linters and auto-fix where possible
-shiplet lint --fix
-```
-
-Shiplet inspects your `package.json` and config files to detect and run:
-
-| Tool           | Config files detected                 |
-| -------------- | ------------------------------------- |
-| **Biome**      | `biome.json`, `biome.jsonc`           |
-| **OXLint**     | `devDependencies.oxlint`              |
-| **ESLint**     | `.eslintrc*`, `eslint.config.*`       |
-| **Prettier**   | `.prettierrc*`, `prettier.config.*`   |
-| **TypeScript** | `tsconfig.json` (runs `tsc --noEmit`) |
-
-All linters run inside the container so the environment is consistent with CI.
-
----
-
-## Scaling Services
-
-```bash
-# Scale the app service to 3 replicas
-shiplet scale app=3
-
-# Scale multiple services at once
-shiplet scale app=2 worker=4
-
-# Scale back to 1
-shiplet scale app=1
-```
-
-Uses `docker/podman compose up --scale` under the hood — containers are added/removed without recreating existing ones.
-
----
-
-## shiplet.config.json
-
-shiplet stores project-level configuration in `shiplet.config.json` at the project root (alongside `shiplet.yml`). This file is safe to commit.
-
-```json
-{
-  "runtime": "podman",
-  "appName": "my-app",
-  "nodeVersion": "20",
-  "packageManager": "pnpm",
-  "port": 3000
-}
-```
-
-| Key              | Description                                    |
-| ---------------- | ---------------------------------------------- |
-| `runtime`        | Pinned container runtime: `docker` or `podman` |
-| `appName`        | Used as the Docker Compose project name        |
-| `nodeVersion`    | Node.js version inside the app container       |
-| `packageManager` | `npm`, `yarn`, or `pnpm`                       |
-| `port`           | Host port the app is exposed on                |
-
-Override the runtime at any time without editing the file:
-
-```bash
-SHIPLET_RUNTIME=docker shiplet up
-```
-
----
-
-## Web Dashboard
-
-Launch a live web UI to manage all your containers, projects, and configuration:
-
-```bash
-shiplet dashboard
-# or the alias:
-shiplet ui
-```
-
-Opens **http://localhost:6171** automatically.
-
-### Dashboard sections
-
-| Section        | What it shows                                                                                                                    |
-| -------------- | -------------------------------------------------------------------------------------------------------------------------------- |
-| **Overview**   | Running/stopped containers with live CPU%, memory bars, network I/O, and port mappings. System info panel.                       |
-| **Projects**   | Auto-scanned Shiplet projects. Per-project: services, runtime badge, version, Up/Down/Restart/Build buttons.                     |
-| **Containers** | All containers (including stopped) with searchable table, per-container start/stop/restart/remove actions.                       |
-| **Images**     | All pulled images with repository, tag, size, and creation date.                                                                 |
-| **Volumes**    | Named volumes with driver and mount path.                                                                                        |
-| **Logs**       | Live WebSocket log streaming — select any container, toggle follow mode, clear.                                                  |
-| **Release**    | Visual release wizard: bump selector, pre-release tag, checkboxes for skip-tests/publish, dry-run preview with commit breakdown. |
-| **Settings**   | Docker ↔ Podman runtime switcher. Per-project `.env` editor. CLI quick-reference grid.                                           |
-
-### Options
-
-```bash
-# Custom port
-shiplet dashboard --port 8080
-
-# Don't auto-open browser
-shiplet dashboard --no-open
-
-# Or set via env
-SHIPLET_UI_PORT=9000 shiplet dashboard
-```
-
-### Live updates
-
-The dashboard uses WebSockets for real-time data:
-- Container stats (CPU, memory, network) refresh every **3 seconds**
-- Log streaming is **live** — tail any running container with zero latency
-- The green dot in the top bar shows the WebSocket connection status
+Shiplet is just a thin wrapper over Compose — any valid Docker Compose V2 configuration works in `shiplet.yml`.
 
 ---
 
 ## Examples
 
-Two complete example projects are included in the `examples/` directory.
+Four complete, runnable example projects ship in the `examples/` directory.
 
 ### `examples/express-docker`
-
-A production-ready **Express.js** REST API using the **Docker** runtime.
-
-**Services:** PostgreSQL 16, Redis 7, Mailpit, Adminer
+Express.js REST API on **Docker** — PostgreSQL, Redis, Mailpit, Adminer.
 
 ```bash
 cd examples/express-docker
 shiplet up -d
 shiplet npm install
 shiplet exec app node src/db/migrate.js
-# App → http://localhost:3000
-# Adminer → http://localhost:8080
-# Mailpit → http://localhost:8025
+# → http://localhost:3000
+# → http://localhost:8025  (Mailpit)
+# → http://localhost:8080  (Adminer)
 ```
 
-Features: request logging (morgan), security headers (helmet), Redis caching with 60s TTL, PostgreSQL connection pooling, full CRUD `/api/items`.
-
 ### `examples/fastify-podman`
-
-A production-ready **Fastify** REST API (ESM) using the **Podman** runtime.
-
-**Services:** MongoDB 7, Redis 7, MinIO (S3), Mailpit, Mongo Express
+Fastify ESM API on **Podman** — MongoDB, Redis, MinIO, Mailpit.
+Includes: Swagger UI, JWT auth, S3 file uploads, Mongoose models.
 
 ```bash
 cd examples/fastify-podman
 SHIPLET_RUNTIME=podman shiplet up -d
 shiplet npm install
-# App        → http://localhost:3000
-# Swagger UI → http://localhost:3000/docs
-# MinIO UI   → http://localhost:9001
-# Mongo UI   → http://localhost:8081
+# → http://localhost:3000/docs  (Swagger)
+# → http://localhost:9001       (MinIO console)
 ```
 
-Features: Swagger/OpenAPI docs, JWT authentication, Redis-cached paginated queries with tag/text search, S3-compatible file uploads via pre-signed URLs (MinIO), Mongoose models with indexes, graceful shutdown.
-
-### Running either example with the other runtime
-
-Both examples work with either runtime — just override:
+### `examples/laravel-docker`
+Laravel 11 on **Docker** — MySQL, Redis, Mailpit, MinIO.
+Includes: Supervisor workers + scheduler, queue processing.
 
 ```bash
-# Run the Docker example with Podman
-cd examples/express-docker
-SHIPLET_RUNTIME=podman shiplet up -d
-
-# Run the Podman example with Docker
-cd examples/fastify-podman
-SHIPLET_RUNTIME=docker shiplet up -d
+cd examples/laravel-docker
+shiplet up -d
+shiplet composer create-project laravel/laravel . --prefer-dist
+shiplet artisan key:generate
+shiplet artisan migrate
+# → http://localhost
+# → http://localhost:8025  (Mailpit)
+# → http://localhost:9001  (MinIO)
 ```
+
+### `examples/symfony-podman`
+Symfony 7 on **Podman** — PostgreSQL, Redis, Mailpit.
+
+```bash
+cd examples/symfony-podman
+SHIPLET_RUNTIME=podman shiplet up -d
+shiplet composer create-project symfony/skeleton . "7.*"
+shiplet console doctrine:database:create
+# → http://localhost
+```
+
+---
+
+## CLI Reference
+
+```
+┌─ Lifecycle ──────────────────────────────────────────────────────────────────
+│  shiplet init [options]           Interactive project setup
+│    --language <l>              node | php
+│    --template <t>              Framework template
+│    --php-version <v>           8.3 | 8.2 | 8.1 | 8.0
+│    --runtime <r>               docker | podman
+│    --yes                       Skip all prompts
+│
+│  shiplet up [-d] [--build]        Start containers
+│  shiplet down [-v]                Stop (−v removes volumes)
+│  shiplet build [--no-cache]       Rebuild images
+│  shiplet status | ps              List services + ports
+│
+├─ Execution ──────────────────────────────────────────────────────────────────
+│  shiplet shell [svc]              Interactive shell (default: app)
+│  shiplet exec <svc> [cmd...]      One-off command in container
+│  shiplet cp <src> <dest>          Copy files (service:path syntax)
+│
+├─ Node.js ───────────────────────────────────────────────────────────────────
+│  shiplet node / npm / npx / yarn / pnpm [args...]
+│
+├─ PHP ───────────────────────────────────────────────────────────────────────
+│  shiplet composer [args...]       Composer commands
+│  shiplet php [args...]            PHP binary
+│  shiplet artisan [args...]        Laravel Artisan shortcut
+│  shiplet console [args...]        Symfony console shortcut
+│  shiplet wp [args...]             WP-CLI shortcut
+│
+├─ Quality ───────────────────────────────────────────────────────────────────
+│  shiplet test [args...]           Run tests (auto-detected runner)
+│  shiplet lint [--fix]             Run linters (auto-detected)
+│
+├─ Database ──────────────────────────────────────────────────────────────────
+│  shiplet db [service]             Open DB CLI (auto-detected)
+│
+├─ Observability ─────────────────────────────────────────────────────────────
+│  shiplet logs [-f] [-n N] [svc]  View / follow container logs
+│  shiplet health [--watch]         Container health dashboard
+│  shiplet top [svc] [--once]      Live process table
+│  shiplet port [svc] [--check]    Port mappings + conflict check
+│  shiplet status | ps              Running services
+│
+├─ Services ──────────────────────────────────────────────────────────────────
+│  shiplet add [services...]        Add services to shiplet.yml
+│  shiplet scale <svc=n>...         Scale replicas
+│  shiplet share [--port] [--subdomain]  Public tunnel
+│
+├─ Data ──────────────────────────────────────────────────────────────────────
+│  shiplet snapshot save|restore|list|delete [name]
+│  shiplet env get|set|unset|list|sync [key] [value]
+│
+├─ Release ───────────────────────────────────────────────────────────────────
+│  shiplet release [patch|minor|major|x.y.z] [options]
+│    --dry-run  --yes  --force  --pre <tag>
+│    --skip-tests  --skip-build  --skip-push
+│    --publish  --access <public|restricted>
+│
+├─ Runtime ───────────────────────────────────────────────────────────────────
+│  shiplet runtime show|switch|check
+│
+├─ Maintenance ───────────────────────────────────────────────────────────────
+│  shiplet doctor                   Environment diagnostic
+│  shiplet prune [target] [-f]      Remove unused resources
+│  shiplet upgrade [--global]       Upgrade shiplet
+│  shiplet publish                  Eject Dockerfiles
+│
+├─ UI ─────────────────────────────────────────────────────────────────────────
+│  shiplet dashboard | ui [-p port] [--no-open]
+│
+└─ Shell ──────────────────────────────────────────────────────────────────────
+   shiplet completions [bash|zsh|fish]
+```
+
+---
+
+## Configuration Reference
+
+### `shiplet.config.json`
+
+```json
+{
+  "language":       "node",         // "node" or "php"
+  "runtime":        "docker",       // "docker" or "podman"
+  "appName":        "my-app",
+
+  "template":       "express",      // Framework template
+  "nodeVersion":    "20",           // Node.js version (node projects)
+  "packageManager": "npm",          // npm | yarn | pnpm (node projects)
+
+  "phpVersion":     "8.3",          // PHP version (php projects)
+  "webServer":      "nginx",        // nginx | apache (php projects)
+
+  "port":           3000            // Host port
+}
+```
+
+### Environment overrides
+
+| Variable          | Purpose                                     |
+| ----------------- | ------------------------------------------- |
+| `SHIPLET_RUNTIME` | Force `docker` or `podman` for all commands |
+| `SHIPLET_UI_PORT` | Default port for `shiplet dashboard`        |
+
+---
+
+## Requirements
+
+- **Node.js ≥ 16** on the host (the `shiplet` CLI itself — your app runs inside the container)
+- One of:
+  - **Docker Desktop** (macOS / Windows) or **Docker Engine + Compose plugin** (Linux)
+    → [Get Docker](https://docs.docker.com/get-docker/)
+  - **Podman ≥ 4.7** (rootless, no daemon needed)
+    → [Get Podman](https://podman.io/getting-started/install)
 
 ---
 
 ## License
 
-MIT © Anand Pilania
+MIT © Shiplet Contributors
 
 ---
+
+## Vite Projects
+
+Shiplet auto-detects Vite projects from `package.json` dependencies and sets up HMR correctly inside Docker/Podman.
+
+```bash
+# In an existing Vite project
+shiplet init           # detects react-swc-ts, vue-ts, svelte, astro, etc.
+
+# Brand new Vite project
+npx create-vite my-app --template react-swc-ts
+cd my-app
+shiplet init           # language: Vite auto-selected
+shiplet up -d
+shiplet pnpm install
+# → http://localhost:5173 with full HMR
+```
+
+### Supported Vite templates
+
+| Template                             | Framework            |
+| ------------------------------------ | -------------------- |
+| `react` / `react-ts`                 | React (Babel)        |
+| `react-swc` / `react-swc-ts`         | React + SWC (faster) |
+| `vue` / `vue-ts`                     | Vue 3                |
+| `svelte` / `svelte-ts` / `sveltekit` | Svelte / SvelteKit   |
+| `solid` / `solid-ts`                 | Solid.js             |
+| `preact` / `preact-ts`               | Preact               |
+| `qwik` / `qwik-ts`                   | Qwik                 |
+| `lit` / `lit-ts`                     | Lit                  |
+| `vanilla` / `vanilla-ts`             | Plain JS/TS          |
+| `astro`                              | Astro (port 4321)    |
+| `remix` / `remix-ts`                 | Remix                |
+
+### Critical vite.config setting
+
+Add this to `vite.config.ts` for HMR to work inside Docker:
+
+```ts
+server: {
+  host: '0.0.0.0',      // listen on all container interfaces
+  port: 5173,
+  hmr: {
+    host: 'localhost',  // browser connects to localhost
+    port: 5173,
+  },
+  watch: {
+    usePolling: true,   // required in Docker volumes on some OSes
+    interval: 300,
+  },
+}
+```
+
+`shiplet init` prints this snippet automatically. The `examples/react-vite-ts/` example has it pre-configured.
+
+---
+
+## Bun Projects
+
+Bun is detected from `bun.lockb` or `bun.lock` files. The container uses the official `oven/bun` image.
+
+```bash
+# In an existing Bun project
+shiplet init           # auto-detects bun-hono, bun-elysia, bun-react, bun-api
+
+# Brand new project
+mkdir my-hono && cd my-hono
+bun init
+bun add hono
+shiplet init           # language: Bun → template: bun-hono
+shiplet up -d
+shiplet bun install
+# → http://localhost:3000
+```
+
+### Bun commands
+
+```bash
+shiplet bun install           # Install dependencies
+shiplet bun add hono          # Add a package
+shiplet bun remove lodash     # Remove a package
+shiplet bun run dev           # Run dev server
+shiplet bun run build         # Build
+shiplet bun test              # Run tests via Bun's built-in runner
+shiplet bun --version         # Check Bun version in container
+```
+
+### Supported Bun templates
+
+| Template     | Description                   |
+| ------------ | ----------------------------- |
+| `bun-blank`  | Bare Bun script               |
+| `bun-api`    | Bun HTTP server (`Bun.serve`) |
+| `bun-hono`   | Hono framework                |
+| `bun-elysia` | ElysiaJS                      |
+| `bun-react`  | React with Bun bundler        |
+
+### Bun version
+
+The container uses `BUN_VERSION=latest` by default. Pin it in `shiplet.yml`:
+
+```yaml
+services:
+  app:
+    build:
+      args:
+        BUN_VERSION: "1.1.21"
+```

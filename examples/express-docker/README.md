@@ -61,4 +61,4 @@ shiplet dashboard           # Web UI → http://localhost:6171
 | http://localhost:3000/health | Health check      |
 | http://localhost:8025        | Mailpit email UI  |
 | http://localhost:8080        | Adminer DB GUI    |
-| http://localhost:6171        | shiplet dashboard |
+| http://localhost:6171        | Shiplet dashboard |

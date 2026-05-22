@@ -5,61 +5,86 @@ const path = require('path');
 const fs = require('fs');
 const chalk = require('chalk');
 
-// ── Runtime detection ────────────────────────────────────────────────────────
+// ── Runtime cache (avoids repeated execSync on every command) ────────────────
+let _runtimeCache = null;
+let _runtimeCacheTime = 0;
+const RUNTIME_CACHE_TTL = 10_000; // 10 s
 
 /**
- * Resolve the container runtime to use: docker or podman.
- * Priority:
- *   1. SHIPLET_RUNTIME env var
- *   2. shiplet.config.json "runtime" field in project root
- *   3. Auto-detect: prefer podman if available + running, else docker
+ * Resolve the container runtime: docker | podman | null.
+ * Priority: SHIPLET_RUNTIME env → shiplet.config.json → auto-detect.
+ * Result is cached for 10 s to avoid hammering execSync on every call.
  */
-function detectRuntime(root) {
-    // 1. Explicit env override
-    const envRuntime = process.env.SHIPLET_RUNTIME;
-    if (envRuntime === 'docker' || envRuntime === 'podman') return envRuntime;
-
-    // 2. Project-level config
-    const cfgPath = root && fs.existsSync(path.join(root, 'shiplet.config.json'))
-        ? path.join(root, 'shiplet.config.json') : null;
-    if (cfgPath) {
-        try {
-            const cfg = JSON.parse(fs.readFileSync(cfgPath, 'utf8'));
-            if (cfg.runtime === 'docker' || cfg.runtime === 'podman') return cfg.runtime;
-        } catch { /* ignore */ }
+function detectRuntime(root, { forceRefresh = false } = {}) {
+    const now = Date.now();
+    if (!forceRefresh && _runtimeCache && (now - _runtimeCacheTime) < RUNTIME_CACHE_TTL) {
+        return _runtimeCache;
     }
 
-    // 3. Auto-detect
+    // 1. Explicit env override
+    const envRuntime = process.env.SHIPLET_RUNTIME;
+    if (envRuntime === 'docker' || envRuntime === 'podman') {
+        _runtimeCache = envRuntime;
+        _runtimeCacheTime = now;
+        return envRuntime;
+    }
+
+    // 2. Project-level config
+    if (root) {
+        const cfgPath = path.join(root, 'shiplet.config.json');
+        if (fs.existsSync(cfgPath)) {
+            try {
+                const cfg = JSON.parse(fs.readFileSync(cfgPath, 'utf8'));
+                if (cfg.runtime === 'docker' || cfg.runtime === 'podman') {
+                    _runtimeCache = cfg.runtime;
+                    _runtimeCacheTime = now;
+                    return cfg.runtime;
+                }
+            } catch { /* ignore malformed config */ }
+        }
+    }
+
+    // 3. Auto-detect — check binary availability then daemon liveness
     const isAvail = (bin) => {
-        try { execSync(`${bin} --version`, { stdio: 'pipe' }); return true; } catch { return false; }
+        try { execSync(`${bin} --version`, { stdio: 'pipe', timeout: 3000 }); return true; }
+        catch { return false; }
     };
     const isRunning = (bin) => {
-        try { execSync(`${bin} info`, { stdio: 'pipe' }); return true; } catch { return false; }
+        try { execSync(`${bin} info`, { stdio: 'pipe', timeout: 5000 }); return true; }
+        catch { return false; }
     };
 
-    if (isAvail('podman') && isRunning('podman')) return 'podman';
-    if (isAvail('docker') && isRunning('docker')) return 'docker';
-    return null; // neither running
+    let detected = null;
+    if (isAvail('podman') && isRunning('podman')) detected = 'podman';
+    else if (isAvail('docker') && isRunning('docker')) detected = 'docker';
+
+    _runtimeCache = detected;
+    _runtimeCacheTime = now;
+    return detected;
+}
+
+/** Bust the runtime cache (call after shiplet runtime switch) */
+function invalidateRuntimeCache() {
+    _runtimeCache = null;
+    _runtimeCacheTime = 0;
 }
 
 /**
- * Get the compose command for the detected runtime.
- * - docker  → ["docker", "compose"]
- * - podman  → ["podman", "compose"]  (podman-compose or podman compose v4+)
+ * Get the compose command array for a given runtime.
+ * docker  → ['docker', 'compose']
+ * podman  → ['podman', 'compose'] or ['podman-compose']
  */
 function getComposeCmd(runtime) {
     if (runtime === 'podman') {
-        // podman >= 4.7 ships compose natively
         try {
-            execSync('podman compose version', { stdio: 'pipe' });
+            execSync('podman compose version', { stdio: 'pipe', timeout: 3000 });
             return ['podman', 'compose'];
         } catch {
-            // fall back to standalone podman-compose
             try {
-                execSync('podman-compose version', { stdio: 'pipe' });
+                execSync('podman-compose version', { stdio: 'pipe', timeout: 3000 });
                 return ['podman-compose'];
             } catch {
-                return ['podman', 'compose']; // let it fail naturally with a clear error
+                return ['podman', 'compose']; // let it fail with a clear error
             }
         }
     }
@@ -67,27 +92,28 @@ function getComposeCmd(runtime) {
 }
 
 /**
- * Assert a supported runtime is installed & running.
+ * Assert a supported runtime is installed and running.
+ * Returns the runtime string, exits the process on failure.
  */
 function assertRuntime(root) {
     const runtime = detectRuntime(root);
     if (!runtime) {
-        console.error(chalk.red('\n✖  No container runtime found (tried Docker and Podman).'));
+        console.error(chalk.red('\n✖  No container runtime found/initialized/started (tried Docker and Podman).'));
         console.error(chalk.gray('   • Docker:  https://docs.docker.com/get-docker/'));
-        console.error(chalk.gray('   • Podman:  https://podman.io/getting-started/install\n'));
-        console.error(chalk.gray('   Or force one: SHIPLET_RUNTIME=docker shiplet up\n'));
+        console.error(chalk.gray('   • Podman:  https://podman.io/getting-started/install'));
+        console.error(chalk.gray('   • Force one: SHIPLET_RUNTIME=docker shiplet up\n'));
         process.exit(1);
     }
     return runtime;
 }
 
-// Keep legacy name for backward compat
+// Legacy alias
 const assertDocker = assertRuntime;
 
 // ── Project helpers ───────────────────────────────────────────────────────────
 
 /**
- * Find the project root (directory containing shiplet.yml / compose.yml).
+ * Walk up from `start` to find the first directory containing a shiplet/compose file.
  */
 function findProjectRoot(start = process.cwd()) {
     let dir = start;
@@ -97,20 +123,18 @@ function findProjectRoot(start = process.cwd()) {
             fs.existsSync(path.join(dir, 'shiplet.config.json')) ||
             fs.existsSync(path.join(dir, 'compose.yml')) ||
             fs.existsSync(path.join(dir, 'docker-compose.yml'))
-        ) {
-            return dir;
-        }
+        ) return dir;
         dir = path.dirname(dir);
     }
     return null;
 }
 
 /**
- * Resolve which compose file to use.
+ * Resolve the compose file path in order of preference.
  */
 function resolveComposeFile(root) {
-    const candidates = ['shiplet.yml', 'compose.yml', 'docker-compose.yml'];
-    for (const f of candidates) {
+    if (!root) return null;
+    for (const f of ['shiplet.yml', 'compose.yml', 'docker-compose.yml']) {
         const full = path.join(root, f);
         if (fs.existsSync(full)) return full;
     }
@@ -118,34 +142,36 @@ function resolveComposeFile(root) {
 }
 
 /**
- * Read shiplet.config.json (if present).
+ * Read shiplet.config.json safely. Returns {} if absent or malformed.
  */
 function readShipletConfig(root) {
-    const cfgPath = root ? path.join(root, 'shiplet.config.json') : null;
-    if (cfgPath && fs.existsSync(cfgPath)) {
-        try { return JSON.parse(fs.readFileSync(cfgPath, 'utf8')); } catch { /* ignore */ }
-    }
-    return {};
+    if (!root) return {};
+    const cfgPath = path.join(root, 'shiplet.config.json');
+    if (!fs.existsSync(cfgPath)) return {};
+    try { return JSON.parse(fs.readFileSync(cfgPath, 'utf8')); }
+    catch { return {}; }
 }
 
 /**
- * Write / merge shiplet.config.json.
+ * Merge `updates` into shiplet.config.json (creates if absent).
  */
 function writeShipletConfig(root, updates) {
     const cfgPath = path.join(root, 'shiplet.config.json');
     const existing = readShipletConfig(root);
     fs.writeFileSync(cfgPath, JSON.stringify({ ...existing, ...updates }, null, 2) + '\n');
+    // Bust cache so next detectRuntime sees the new value
+    invalidateRuntimeCache();
 }
 
 // ── Compose runner ────────────────────────────────────────────────────────────
 
 /**
- * Run compose with given args, streaming output.
- * Returns a Promise that resolves/rejects on exit.
+ * Spawn compose with `args`, streaming stdio.  Returns a Promise.
+ * Cleans up the child process on SIGINT so we never leave orphans.
  */
-function runCompose(args, { cwd, env, runtime: forceRuntime } = {}) {
+function runCompose(args, { cwd: cwdOpt, env: extraEnv, runtime: forceRuntime } = {}) {
     return new Promise((resolve, reject) => {
-        const root = cwd || findProjectRoot();
+        const root = cwdOpt || findProjectRoot();
         if (!root) {
             console.error(chalk.red('\n✖  No shiplet.yml / compose.yml found. Run `shiplet init` first.\n'));
             process.exit(1);
@@ -160,35 +186,63 @@ function runCompose(args, { cwd, env, runtime: forceRuntime } = {}) {
         const proc = spawn(bin, fullArgs, {
             cwd: root,
             stdio: 'inherit',
-            env: { ...process.env, ...env },
+            env: { ...process.env, ...extraEnv },
         });
 
+        // Guarantee child cleanup on parent SIGINT
+        const onSigint = () => { try { proc.kill('SIGTERM'); } catch { } };
+        process.once('SIGINT', onSigint);
+
         proc.on('close', (code) => {
-            if (code === 0) resolve();
+            process.removeListener('SIGINT', onSigint);
+            if (code === 0 || code === null) resolve();
             else reject(new Error(`${bin} compose exited with code ${code}`));
         });
-        proc.on('error', reject);
+
+        proc.on('error', (err) => {
+            process.removeListener('SIGINT', onSigint);
+            reject(err);
+        });
     });
 }
 
-// Legacy alias used across existing commands
+// Legacy alias
 const dockerCompose = runCompose;
 
 /**
- * Get list of running services.
+ * Get names of currently-running services for a project.
  */
 function getRunningServices(root) {
     const runtime = detectRuntime(root) || 'docker';
-    const [bin, ...baseCompose] = getComposeCmd(runtime);
-    const composeFile = resolveComposeFile(root);
-    const fileFlag = composeFile ? `-f ${composeFile}` : '';
+    const [bin, ...base] = getComposeCmd(runtime);
+    const cf = resolveComposeFile(root);
+    const fileFlag = cf ? ['-f', cf] : [];
     try {
-        const cmd = `${bin} ${[...baseCompose, fileFlag, 'ps --services --filter status=running'].filter(Boolean).join(' ')}`;
-        const out = execSync(cmd, { cwd: root, stdio: 'pipe' }).toString().trim();
-        return out ? out.split('\n') : [];
+        const out = execSync(
+            [bin, ...base, ...fileFlag, 'ps', '--services', '--filter', 'status=running'].join(' '),
+            { cwd: root, stdio: 'pipe', timeout: 8000 }
+        ).toString().trim();
+        return out ? out.split('\n').filter(Boolean) : [];
     } catch {
         return [];
     }
+}
+
+/**
+ * Sanitise a string for safe use in a shell argument.
+ * Rejects anything that isn't alphanumeric + common container-name chars.
+ */
+function sanitiseContainerName(name) {
+    if (!/^[a-zA-Z0-9_.\-/]+$/.test(name)) {
+        throw new Error(`Unsafe container name: "${name}"`);
+    }
+    return name;
+}
+
+/** Sanitise a positive integer string (lines, etc.) */
+function sanitiseInt(val, fallback = '100') {
+    const n = parseInt(val, 10);
+    return (!isNaN(n) && n > 0) ? String(n) : fallback;
 }
 
 // ── Output helpers ────────────────────────────────────────────────────────────
@@ -205,28 +259,33 @@ function error(msg, exitCode = null) {
     if (exitCode !== null) process.exit(exitCode);
 }
 
-/** Print runtime badge on startup */
 function printRuntimeBadge(root) {
     const runtime = detectRuntime(root);
     if (!runtime) return;
-    const badge = runtime === 'podman'
-        ? chalk.magenta('  [podman]')
-        : chalk.blue('  [docker]');
+    const badge = runtime === 'podman' ? chalk.magenta('  [podman]') : chalk.blue('  [docker]');
     console.log(badge + chalk.gray(' runtime active\n'));
 }
 
 module.exports = {
+    // Runtime
     detectRuntime,
+    invalidateRuntimeCache,
     getComposeCmd,
     assertRuntime,
-    assertDocker,         // legacy alias
+    assertDocker,       // legacy alias
+    // Project
     findProjectRoot,
     resolveComposeFile,
     readShipletConfig,
     writeShipletConfig,
+    // Compose
     runCompose,
-    dockerCompose,        // legacy alias
+    dockerCompose,      // legacy alias
     getRunningServices,
+    // Security
+    sanitiseContainerName,
+    sanitiseInt,
+    // Output
     header,
     success,
     info,

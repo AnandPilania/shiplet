@@ -4,17 +4,6 @@
  * shiplet release  — streamlined release pipeline
  *
  * Pre-release checks → version bump → changelog → git tag → build image → push/publish
- *
- * Supports:
- *   shiplet release patch          bump patch (1.0.0 → 1.0.1)
- *   shiplet release minor          bump minor (1.0.0 → 1.1.0)
- *   shiplet release major          bump major (1.0.0 → 2.0.0)
- *   shiplet release 2.3.0          explicit version
- *   shiplet release --pre beta     1.0.0 → 1.0.1-beta.0
- *   shiplet release --dry-run      simulate everything, no mutations
- *   shiplet release --skip-tests
- *   shiplet release --skip-build
- *   shiplet release --skip-push
  */
 
 const fs = require('fs');
@@ -46,7 +35,6 @@ function bumpVersion(current, bump, preTag) {
     else if (bump === 'minor') { minor++; patch = 0; }
     else if (bump === 'patch') { patch++; }
     else {
-        // explicit version
         const explicit = parseSemver(bump);
         if (!explicit) throw new Error(`Invalid version: ${bump}`);
         return preTag
@@ -70,10 +58,7 @@ function gitSafe(cmd) {
 }
 
 function isGitRepo(root) { return fs.existsSync(path.join(root, '.git')); }
-function isGitClean(root) {
-    const status = gitSafe('status --porcelain');
-    return status === '';
-}
+function isGitClean() { return gitSafe('status --porcelain') === ''; }
 function currentBranch() { return gitSafe('branch --show-current'); }
 function getLastTag() { return gitSafe('describe --tags --abbrev=0') || null; }
 function commitsSinceTag(tag) {
@@ -81,24 +66,32 @@ function commitsSinceTag(tag) {
     return gitSafe(`log ${tag}..HEAD --oneline`).split('\n').filter(Boolean);
 }
 
+// ── Detect lock file for the current package manager ─────────────────────────
+
+function detectLockFile(root) {
+    if (fs.existsSync(path.join(root, 'pnpm-lock.yaml'))) return 'pnpm-lock.yaml';
+    if (fs.existsSync(path.join(root, 'yarn.lock'))) return 'yarn.lock';
+    if (fs.existsSync(path.join(root, 'package-lock.json'))) return 'package-lock.json';
+    return null;
+}
+
 // ── Changelog generator ───────────────────────────────────────────────────────
 
 const CC_TYPES = {
-    feat: { label: '🚀 Features', emoji: '✨' },
-    fix: { label: '🐛 Bug Fixes', emoji: '🔧' },
-    perf: { label: '⚡ Performance', emoji: '⚡' },
-    refactor: { label: '♻️  Refactoring', emoji: '♻️' },
-    docs: { label: '📝 Documentation', emoji: '📝' },
-    test: { label: '🧪 Tests', emoji: '🧪' },
-    chore: { label: '🔨 Chores', emoji: '🔨' },
-    ci: { label: '🤖 CI/CD', emoji: '🤖' },
-    build: { label: '📦 Build', emoji: '📦' },
-    style: { label: '💄 Style', emoji: '💄' },
-    breaking: { label: '💥 Breaking Changes', emoji: '💥' },
+    feat: { label: '🚀 Features' },
+    fix: { label: '🐛 Bug Fixes' },
+    perf: { label: '⚡ Performance' },
+    refactor: { label: '♻️  Refactoring' },
+    docs: { label: '📝 Documentation' },
+    test: { label: '🧪 Tests' },
+    chore: { label: '🔨 Chores' },
+    ci: { label: '🤖 CI/CD' },
+    build: { label: '📦 Build' },
+    style: { label: '💄 Style' },
+    breaking: { label: '💥 Breaking Changes' },
 };
 
 function parseConventionalCommit(line) {
-    // "abc1234 feat(scope): description"
     const m = line.match(/^[a-f0-9]+\s+(\w+)(?:\(([^)]+)\))?(!)?:\s+(.+)$/);
     if (!m) return { type: 'other', scope: null, breaking: false, desc: line.replace(/^[a-f0-9]+\s+/, '') };
     return {
@@ -140,45 +133,38 @@ function buildChangelog(version, commits) {
 function prependChangelog(root, content) {
     const clPath = path.join(root, 'CHANGELOG.md');
     const existing = fs.existsSync(clPath) ? fs.readFileSync(clPath, 'utf8') : '# Changelog\n\n';
-    const header_ = existing.startsWith('# Changelog') ? existing : '# Changelog\n\n' + existing;
-    const [title, ...rest] = header_.split('\n');
+    const normalized = existing.startsWith('# Changelog') ? existing : '# Changelog\n\n' + existing;
+    const [title, ...rest] = normalized.split('\n');
     fs.writeFileSync(clPath, [title, '', content, ...rest].join('\n'));
 }
 
 // ── Pre-release checks ────────────────────────────────────────────────────────
 
 async function runPreChecks(root, opts) {
-    const checks = [];
-
-    // 1. Git repo
-    checks.push({
-        name: 'Git repository',
-        run: () => isGitRepo(root),
-        fix: 'Run `git init` first.',
-    });
-
-    // 2. Clean working tree
-    checks.push({
-        name: 'Clean working tree',
-        run: () => isGitClean(root),
-        fix: 'Commit or stash your changes before releasing.',
-        warn: true,
-    });
-
-    // 3. On main/master
-    checks.push({
-        name: 'On main branch',
-        run: () => ['main', 'master'].includes(currentBranch()),
-        fix: `You are on branch ${chalk.cyan(currentBranch())}. Switch to main/master or use --force.`,
-        warn: true,
-    });
-
-    // 4. package.json exists
-    checks.push({
-        name: 'package.json exists',
-        run: () => fs.existsSync(path.join(root, 'package.json')),
-        fix: 'No package.json found.',
-    });
+    const checks = [
+        {
+            name: 'Git repository',
+            run: () => isGitRepo(root),
+            fix: 'Run `git init` first.',
+        },
+        {
+            name: 'Clean working tree',
+            run: () => isGitClean(),
+            fix: 'Commit or stash your changes before releasing.',
+            warn: true,
+        },
+        {
+            name: 'On main branch',
+            run: () => ['main', 'master'].includes(currentBranch()),
+            fix: `You are on branch ${chalk.cyan(currentBranch())}. Switch to main/master or use --force.`,
+            warn: true,
+        },
+        {
+            name: 'package.json exists',
+            run: () => fs.existsSync(path.join(root, 'package.json')),
+            fix: 'No package.json found.',
+        },
+    ];
 
     console.log('');
     let hasErrors = false;
@@ -275,17 +261,19 @@ module.exports = async function releaseCommand(bump = 'patch', options = {}) {
         pkg.version = nextVersion;
         fs.writeFileSync(pkgPath, JSON.stringify(pkg, null, 2) + '\n');
 
-        // also bump any workspaces root
-        const otherPkgs = ['package-lock.json'];
-        for (const f of otherPkgs) {
-            const fp = path.join(root, f);
-            if (fs.existsSync(fp)) {
-                try {
-                    const lock = JSON.parse(fs.readFileSync(fp, 'utf8'));
-                    if (lock.version) { lock.version = nextVersion; fs.writeFileSync(fp, JSON.stringify(lock, null, 2) + '\n'); }
-                } catch { /* ignore */ }
-            }
+        // Bump lock file if it tracks the root version (npm only)
+        const lockFile = detectLockFile(root);
+        if (lockFile === 'package-lock.json') {
+            const lockPath = path.join(root, lockFile);
+            try {
+                const lock = JSON.parse(fs.readFileSync(lockPath, 'utf8'));
+                if (lock.version) {
+                    lock.version = nextVersion;
+                    fs.writeFileSync(lockPath, JSON.stringify(lock, null, 2) + '\n');
+                }
+            } catch { /* ignore — lock file may not have a top-level version */ }
         }
+        // pnpm/yarn lock files don't embed the project version — no update needed
     }
     bumpSpinner.succeed(`package.json → ${chalk.cyan(nextVersion)}`);
 
@@ -311,7 +299,11 @@ module.exports = async function releaseCommand(bump = 'patch', options = {}) {
 
     if (!isDry) {
         try {
-            git('add package.json package-lock.json CHANGELOG.md');
+            // Stage package.json, CHANGELOG.md, and whichever lock file exists
+            const lockFile = detectLockFile(root);
+            const filesToStage = ['package.json', 'CHANGELOG.md'];
+            if (lockFile) filesToStage.push(lockFile);
+            git(`add ${filesToStage.join(' ')}`);
             git(`commit -m "chore(release): ${tag}"`);
             git(`tag -a ${tag} -m "Release ${tag}"`);
         } catch (e) {

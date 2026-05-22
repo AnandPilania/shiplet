@@ -50,7 +50,7 @@ module.exports = async function runtimeCommand(action = 'show') {
             header('Container Runtime');
 
             const source =
-                process.env.SHIPLET_RUNTIME ? chalk.cyan('SHIPLET_RUNTIME env var') :
+                procSHIPLET_nv.SHIPLET_RUNTIME ? chalk.cyan('SHIPLET_RUNTIME env var') :
                     config.runtime ? chalk.cyan('shiplet.config.json') :
                         active ? chalk.gray('auto-detected') :
                             chalk.red('none found');

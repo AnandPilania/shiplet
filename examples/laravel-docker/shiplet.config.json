@@ -1,0 +1,9 @@
+{
+    "language": "php",
+    "runtime": "docker",
+    "appName": "shiplet-laravel",
+    "phpVersion": "8.3",
+    "template": "laravel",
+    "webServer": "nginx",
+    "port": 80
+}

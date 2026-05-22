@@ -1,5 +1,12 @@
-.shiplet/
+# Test / CI
 *.test.js
 *.spec.js
-.github/
 coverage/
+.github/
+.DS_Store
+
+# Root .shiplet dir is internal — example .shiplet/ dirs must ship
+/.shiplet/
+
+# Don't include old tarballs
+*.tgz

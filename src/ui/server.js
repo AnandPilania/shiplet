@@ -4,12 +4,13 @@ const express = require('express');
 const http = require('http');
 const path = require('path');
 const fs = require('fs');
+const os = require('os');
 const { execSync, spawn } = require('child_process');
 const { WebSocketServer } = require('ws');
 
 const {
     detectRuntime, getComposeCmd, findProjectRoot,
-    resolveComposeFile, readShipletConfig,
+    resolveComposeFile, readShipletConfig, writeShipletConfig,
 } = require('../utils/helpers');
 
 // ── helpers ──────────────────────────────────────────────────────────────────
@@ -20,41 +21,65 @@ function run(cmd, opts = {}) {
     } catch { return ''; }
 }
 
-function runtimeBin(root) {
+/**
+ * Return the active runtime, re-evaluated on every call so that
+ * switching via /api/runtime/switch takes effect immediately.
+ */
+function getRt(root) {
     return detectRuntime(root) || 'docker';
 }
 
-function composeCmd(root) {
-    const rt = runtimeBin(root);
+function getComposeStr(root) {
+    const rt = getRt(root);
     return getComposeCmd(rt).join(' ');
 }
 
-function composeArgs(root) {
+function getFileFlag(root) {
     const cf = resolveComposeFile(root);
     return cf ? `-f ${cf}` : '';
 }
 
 // ── data collectors ──────────────────────────────────────────────────────────
 
-function getProjects() {
-    // Scan for shiplet projects in common dirs: cwd, home subdirs (1 level deep)
+/**
+ * Scan for Shiplet projects. Checks cwd, then immediate subdirs of cwd,
+ * then immediate subdirs of home — capped at 50 dirs total for safety.
+ */
+function getProjects(serverRoot) {
     const candidates = new Set();
-    const cwd = process.cwd();
+    const cwd = serverRoot || process.cwd();
     candidates.add(cwd);
 
-    const home = require('os').homedir();
+    // Subdirs of cwd (most likely location for related projects)
     try {
-        fs.readdirSync(home).forEach(d => {
-            const full = path.join(home, d);
-            try {
-                if (fs.statSync(full).isDirectory()) candidates.add(full);
-            } catch { }
+        fs.readdirSync(cwd).forEach(d => {
+            const full = path.join(cwd, d);
+            try { if (fs.statSync(full).isDirectory()) candidates.add(full); } catch { }
         });
     } catch { }
 
+    // One level under home — limit to avoid scanning huge dirs
+    const home = os.homedir();
+    if (home !== cwd) {
+        let scanned = 0;
+        try {
+            fs.readdirSync(home).forEach(d => {
+                if (scanned >= 30) return; // cap home scanning
+                const full = path.join(home, d);
+                try {
+                    if (fs.statSync(full).isDirectory()) {
+                        candidates.add(full);
+                        scanned++;
+                    }
+                } catch { }
+            });
+        } catch { }
+    }
+
     const projects = [];
     for (const dir of candidates) {
-        const hasShiplet = fs.existsSync(path.join(dir, 'shiplet.yml')) ||
+        const hasShiplet =
+            fs.existsSync(path.join(dir, 'shiplet.yml')) ||
             fs.existsSync(path.join(dir, 'compose.yml')) ||
             fs.existsSync(path.join(dir, 'docker-compose.yml'));
         if (!hasShiplet) continue;
@@ -66,8 +91,8 @@ function getProjects() {
         })();
 
         const rt = detectRuntime(dir) || 'docker';
-        const cc = composeCmd(dir);
-        const ca = composeArgs(dir);
+        const cc = getComposeCmd(rt).join(' ');
+        const ca = resolveComposeFile(dir) ? `-f ${resolveComposeFile(dir)}` : '';
 
         const services = (() => {
             try {
@@ -79,7 +104,7 @@ function getProjects() {
         })();
 
         projects.push({
-            id: Buffer.from(dir).toString('base64').slice(0, 12),
+            id: Buffer.from(dir).toString('base64').replace(/[+/=]/g, '').slice(0, 16),
             path: dir,
             name: cfg.appName || pkg.name || path.basename(dir),
             version: pkg.version || '—',
@@ -146,7 +171,8 @@ function getImages(rt) {
 function getSystemInfo(rt) {
     const bin = rt === 'podman' ? 'podman' : 'docker';
     try {
-        const info = JSON.parse(run(`${bin} info --format "{{json .}}"`));
+        const infoRaw = run(`${bin} info --format "{{json .}}"`);
+        const info = JSON.parse(infoRaw);
         return {
             version: info.ServerVersion || info.Version || '—',
             os: info.OperatingSystem || info.OSType || '—',
@@ -171,13 +197,13 @@ function createServer(port = 6171, options = {}) {
     app.use(express.json());
     app.use(express.static(path.join(__dirname, 'public')));
 
-    const rt = runtimeBin(process.cwd());
     const root = findProjectRoot() || process.cwd();
 
     // ── REST API ──────────────────────────────────────────────────────────────
 
-    // Dashboard overview
+    // Dashboard overview — runtime re-evaluated on each request
     app.get('/api/overview', (req, res) => {
+        const rt = getRt(root);
         const containers = getAllContainers(rt);
         const stats = getContainerStats(rt);
         const sysInfo = getSystemInfo(rt);
@@ -189,39 +215,40 @@ function createServer(port = 6171, options = {}) {
 
     // Projects
     app.get('/api/projects', (req, res) => {
-        res.json(getProjects());
+        res.json(getProjects(root));
     });
 
     // Containers
     app.get('/api/containers', (req, res) => {
-        res.json(getAllContainers(rt));
+        res.json(getAllContainers(getRt(root)));
     });
 
     // Stats
     app.get('/api/stats', (req, res) => {
-        res.json(getContainerStats(rt));
+        res.json(getContainerStats(getRt(root)));
     });
 
     // Volumes
     app.get('/api/volumes', (req, res) => {
-        res.json(getVolumes(rt));
+        res.json(getVolumes(getRt(root)));
     });
 
     // Images
     app.get('/api/images', (req, res) => {
-        res.json(getImages(rt));
+        res.json(getImages(getRt(root)));
     });
 
     // System info
     app.get('/api/system', (req, res) => {
+        const rt = getRt(root);
         res.json({ ...getSystemInfo(rt), runtime: rt });
     });
 
-    // Container action: start / stop / restart / remove
+    // Container action: start / stop / restart / remove / kill / pause / unpause
     app.post('/api/containers/:name/action', (req, res) => {
         const { name } = req.params;
         const { action } = req.body;
-        const bin = rt === 'podman' ? 'podman' : 'docker';
+        const bin = getRt(root) === 'podman' ? 'podman' : 'docker';
         const allowed = { start: 1, stop: 1, restart: 1, remove: 1, kill: 1, pause: 1, unpause: 1 };
         if (!allowed[action]) return res.status(400).json({ error: 'Invalid action' });
         const cmd = action === 'remove' ? 'rm -f' : action;
@@ -237,15 +264,15 @@ function createServer(port = 6171, options = {}) {
     app.post('/api/projects/:id/action', (req, res) => {
         const { id } = req.params;
         const { action } = req.body;
-        const projects = getProjects();
+        const projects = getProjects(root);
         const project = projects.find(p => p.id === id);
         if (!project) return res.status(404).json({ error: 'Project not found' });
 
         const allowed = { up: 1, down: 1, restart: 1, build: 1, pull: 1 };
         if (!allowed[action]) return res.status(400).json({ error: 'Invalid action' });
 
-        const cc = composeCmd(project.path);
-        const ca = composeArgs(project.path);
+        const cc = getComposeCmd(project.runtime || getRt(project.path)).join(' ');
+        const ca = resolveComposeFile(project.path) ? `-f ${resolveComposeFile(project.path)}` : '';
         const args = action === 'up' ? `${cc} ${ca} up -d` :
             action === 'down' ? `${cc} ${ca} down` :
                 action === 'restart' ? `${cc} ${ca} restart` :
@@ -264,7 +291,7 @@ function createServer(port = 6171, options = {}) {
     app.get('/api/containers/:name/logs', (req, res) => {
         const { name } = req.params;
         const lines = req.query.lines || '100';
-        const bin = rt === 'podman' ? 'podman' : 'docker';
+        const bin = getRt(root) === 'podman' ? 'podman' : 'docker';
         try {
             const out = run(`${bin} logs --tail ${lines} ${name} 2>&1`);
             res.json({ logs: out });
@@ -276,14 +303,13 @@ function createServer(port = 6171, options = {}) {
     // Env for a project
     app.get('/api/projects/:id/env', (req, res) => {
         const { id } = req.params;
-        const projects = getProjects();
+        const projects = getProjects(root);
         const project = projects.find(p => p.id === id);
         if (!project) return res.status(404).json({ error: 'Not found' });
         const envPath = path.join(project.path, '.env');
         if (!fs.existsSync(envPath)) return res.json({ env: {} });
-        const lines = fs.readFileSync(envPath, 'utf8').split('\n');
         const env = {};
-        lines.forEach(l => {
+        fs.readFileSync(envPath, 'utf8').split('\n').forEach(l => {
             const t = l.trim();
             if (!t || t.startsWith('#')) return;
             const i = t.indexOf('=');
@@ -297,7 +323,7 @@ function createServer(port = 6171, options = {}) {
     app.put('/api/projects/:id/env/:key', (req, res) => {
         const { id, key } = req.params;
         const { value } = req.body;
-        const projects = getProjects();
+        const projects = getProjects(root);
         const project = projects.find(p => p.id === id);
         if (!project) return res.status(404).json({ error: 'Not found' });
         const envPath = path.join(project.path, '.env');
@@ -311,13 +337,12 @@ function createServer(port = 6171, options = {}) {
         res.json({ ok: true });
     });
 
-    // Runtime switch
+    // Runtime switch — updates config AND takes effect immediately (getRt is dynamic)
     app.post('/api/runtime/switch', (req, res) => {
         const { runtime } = req.body;
         if (runtime !== 'docker' && runtime !== 'podman') {
             return res.status(400).json({ error: 'Invalid runtime' });
         }
-        const { writeShipletConfig } = require('../utils/helpers');
         try {
             writeShipletConfig(root, { runtime });
             res.json({ ok: true, runtime });
@@ -326,7 +351,7 @@ function createServer(port = 6171, options = {}) {
         }
     });
 
-    // Release dry-run info
+    // Release info
     app.get('/api/release/info', (req, res) => {
         try {
             const pkg = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8'));
@@ -356,17 +381,18 @@ function createServer(port = 6171, options = {}) {
                 const msg = JSON.parse(raw);
 
                 if (msg.type === 'subscribe_logs') {
-                    if (logProc) { try { logProc.kill(); } catch { } }
-                    const bin = rt === 'podman' ? 'podman' : 'docker';
-                    logProc = spawn(bin, ['logs', '-f', '--tail', '50', msg.container], { shell: true });
+                    if (logProc) { try { logProc.kill(); } catch { } logProc = null; }
+                    const bin = getRt(root) === 'podman' ? 'podman' : 'docker';
+                    logProc = spawn(bin, ['logs', '-f', '--tail', '50', msg.container]);
                     const send = (data) => {
                         if (ws.readyState === ws.OPEN) {
-                            ws.send(JSON.stringify({ type: 'log', line: data.toString() }));
+                            ws.send(JSON.stringify({ type: 'log', line: data.toString().trimEnd() }));
                         }
                     };
                     logProc.stdout.on('data', send);
                     logProc.stderr.on('data', send);
                     logProc.on('close', () => {
+                        logProc = null;
                         if (ws.readyState === ws.OPEN) {
                             ws.send(JSON.stringify({ type: 'log_end' }));
                         }
@@ -378,6 +404,7 @@ function createServer(port = 6171, options = {}) {
                 }
 
                 if (msg.type === 'ping') {
+                    const rt = getRt(root);
                     ws.send(JSON.stringify({ type: 'pong', rt, time: Date.now() }));
                 }
             } catch { }
@@ -388,14 +415,17 @@ function createServer(port = 6171, options = {}) {
         });
     });
 
-    // ── Polling broadcast ─────────────────────────────────────────────────────
+    // ── Polling broadcast — only fires when clients are connected ─────────────
     const broadcast = (data) => {
+        const connected = [...wss.clients].filter(c => c.readyState === 1);
+        if (!connected.length) return;
         const payload = JSON.stringify(data);
-        wss.clients.forEach(c => { if (c.readyState === 1) c.send(payload); });
+        connected.forEach(c => c.send(payload));
     };
 
     setInterval(() => {
         try {
+            const rt = getRt(root);
             const stats = getContainerStats(rt);
             const containers = getAllContainers(rt);
             broadcast({ type: 'stats_update', stats, containers, ts: Date.now() });

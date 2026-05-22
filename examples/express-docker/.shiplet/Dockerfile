@@ -10,12 +10,12 @@ ENV DEBIAN_FRONTEND=noninteractive
 
 # System deps
 RUN apt-get update -y \
-    && apt-get install -y --no-install-recommends \
-    curl git ca-certificates tzdata postgresql-client \
-    && ln -snf /usr/share/zoneinfo/$TZ /etc/localtime \
-    && echo "$TZ" > /etc/timezone \
-    && apt-get clean \
-    && rm -rf /var/lib/apt/lists/*
+ && apt-get install -y --no-install-recommends \
+      curl git ca-certificates tzdata postgresql-client \
+ && ln -snf /usr/share/zoneinfo/$TZ /etc/localtime \
+ && echo "$TZ" > /etc/timezone \
+ && apt-get clean \
+ && rm -rf /var/lib/apt/lists/*
 
 # Global dev tools
 RUN npm install -g nodemon

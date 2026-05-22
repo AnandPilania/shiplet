@@ -13,7 +13,10 @@ const fs = require('fs');
 const chalk = require('chalk');
 const ora = require('ora');
 const { header, success, info } = require('../utils/helpers');
-const { version: currentVersion } = require('../../package.json');
+const { version: currentVersion, repository } = require('../../package.json');
+
+const REPO_URL = (repository?.url || 'https://github.com/anandpilania/shiplet')
+    .replace(/^git\+/, '').replace(/\.git$/, '');
 
 function semverGt(a, b) {
     const pa = a.replace(/^v/, '').split('.').map(Number);
@@ -26,7 +29,6 @@ function semverGt(a, b) {
 }
 
 function detectInstallMode() {
-    // Is shiplet installed globally or as a local devDep?
     try {
         const globalList = execSync('npm list -g --depth=0 --json', { stdio: 'pipe' }).toString();
         const globals = JSON.parse(globalList);
@@ -66,7 +68,6 @@ module.exports = async function upgradeCommand(options) {
     info(`New version available: ${chalk.cyan(latestVersion)}`);
 
     if (options.check) {
-        // --check: just report, don't install
         console.log(`\n  Run ${chalk.cyan('shiplet upgrade')} to install v${latestVersion}.\n`);
         return;
     }
@@ -85,7 +86,6 @@ module.exports = async function upgradeCommand(options) {
         }
         installSpinner.succeed(`Upgraded to v${latestVersion} (global).`);
     } else {
-        // Local devDependency
         const cwd = process.cwd();
         const pm = detectPackageManager(cwd);
         const cmds = {
@@ -104,6 +104,6 @@ module.exports = async function upgradeCommand(options) {
 
     console.log(`
   ${chalk.bold('What changed:')}
-  ${chalk.cyan('https://github.com/your-org/shiplet/releases/tag/v' + latestVersion)}
+  ${chalk.cyan(`${REPO_URL}/releases/tag/v${latestVersion}`)}
   `);
 };

@@ -1,6 +1,6 @@
 {
     "name": "shiplet-example-fastify-podman",
-    "version": "1.0.0",
+    "version": "0.2.1",
     "description": "Shiplet example — Fastify REST API with Podman, MongoDB, Redis, MinIO",
     "type": "module",
     "main": "src/index.js",

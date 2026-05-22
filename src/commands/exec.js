@@ -2,22 +2,23 @@
 
 const { spawn } = require('child_process');
 const chalk = require('chalk');
-const { assertDocker, findProjectRoot, resolveComposeFile } = require('../utils/helpers');
+const { assertRuntime, findProjectRoot, resolveComposeFile, getComposeCmd } = require('../utils/helpers');
 
 module.exports = function execCommand(service, cmdArgs) {
-    assertDocker();
     const root = findProjectRoot();
     if (!root) {
         console.error(chalk.red('\n✖  No shiplet.yml found. Run `shiplet init` first.\n'));
         process.exit(1);
     }
 
+    const runtime = assertRuntime(root);
+    const [bin, ...baseCompose] = getComposeCmd(runtime);
     const composeFile = resolveComposeFile(root);
-    const baseArgs = composeFile ? ['-f', composeFile] : [];
+    const fileFlag = composeFile ? ['-f', composeFile] : [];
 
     const proc = spawn(
-        'docker',
-        ['compose', ...baseArgs, 'exec', service, ...cmdArgs],
+        bin,
+        [...baseCompose, ...fileFlag, 'exec', service, ...cmdArgs],
         { cwd: root, stdio: 'inherit' }
     );
 

@@ -32,7 +32,7 @@ await app.register(jwt, { secret: process.env.JWT_SECRET || 'dev-secret' });
 
 await app.register(swagger, {
     openapi: {
-        info: { title: 'shiplet Fastify API', description: 'Example Fastify app via Shiplet + Podman', version: '1.0.0' },
+        info: { title: 'Shiplet Fastify API', description: 'Example Fastify app via Shiplet + Podman', version: '0.2.1' },
         components: {
             securitySchemes: { bearerAuth: { type: 'http', scheme: 'bearer' } },
         },

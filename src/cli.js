@@ -29,6 +29,15 @@ const runtimeCommand = require('./commands/runtime');
 const completionsCommand = require('./commands/completions');
 const upgradeCommand = require('./commands/upgrade');
 const dashboardCommand = require('./commands/dashboard');
+const composerCommand = require('./commands/composer');
+const bunCommand = require('./commands/bun');
+const { phpCommand, artisanCommand, wpCommand, consoleCommand } = require('./commands/php');
+
+const doctorCommand = require('./commands/doctor');
+const pruneCommand = require('./commands/prune');
+const cpCommand = require('./commands/cp');
+const portCommand = require('./commands/port');
+const topCommand = require('./commands/top');
 
 // ── Banner ────────────────────────────────────────────────────────────────────
 const BANNER = `
@@ -38,7 +47,7 @@ ${chalk.cyan(' ╚█████╗ ███████║██║███�
 ${chalk.cyan('  ╚═══██╗██╔══██║██║██╔═══╝ ██║     ██╔══╝     ██║   ')}
 ${chalk.cyan(' ██████╔╝██║  ██║██║██║     ███████╗███████╗   ██║   ')}
 ${chalk.cyan(' ╚═════╝ ╚═╝  ╚═╝╚═╝╚═╝     ╚══════╝╚══════╝   ╚═╝   ')}
-${chalk.gray('  Node.js Docker Dev Environment')}  ${chalk.yellow('v' + version)}
+${chalk.gray('  Node.js · Vite · Bun · PHP — Docker/Podman')}  ${chalk.yellow('v' + version)}
 `;
 
 const hideBanner = process.argv.includes('completions') && process.argv.length > 3;
@@ -47,7 +56,7 @@ if (!hideBanner) console.log(BANNER);
 // ── Program ───────────────────────────────────────────────────────────────────
 program
     .name('shiplet')
-    .description('Shiplet — Docker-powered dev environment for Node.js projects')
+    .description('Shiplet — Docker/Podman dev environment CLI for Node.js, Vite, Bun, and PHP — web dashboard, release pipeline, and more.')
     .version(version);
 
 // SETUP
@@ -189,5 +198,81 @@ program
     .option('-p, --port <port>', 'Port to listen on', '6171')
     .option('--no-open', 'Do not auto-open browser')
     .action(dashboardCommand);
+
+
+// ── Doctor ─────────────────────────────────────────────────────────────────────
+program
+    .command('doctor')
+    .description('Diagnose your environment: runtime, ports, .env, compose syntax, disk')
+    .action(doctorCommand);
+
+// ── Prune ──────────────────────────────────────────────────────────────────────
+program
+    .command('prune [target]')
+    .description('Remove unused containers | images | volumes | networks | all')
+    .option('-f, --force', 'Skip confirmation prompt')
+    .action(pruneCommand);
+
+// ── Copy ──────────────────────────────────────────────────────────────────────
+program
+    .command('cp <src> <dest>')
+    .description('Copy files between host and container  e.g. shiplet cp app:/logs/app.log .')
+    .option('-a, --archive', 'Preserve ownership and permissions')
+    .option('-L, --follow-link', 'Follow symlinks in src')
+    .action(cpCommand);
+
+// ── Ports ─────────────────────────────────────────────────────────────────────
+program
+    .command('port [service]')
+    .description('List host→container port mappings for running services')
+    .option('--check', 'Warn about host port conflicts')
+    .action(portCommand);
+
+// ── Top ───────────────────────────────────────────────────────────────────────
+program
+    .command('top [service]')
+    .description('Live process table inside a container (refreshes every 2s)')
+    .option('--once', 'Print once and exit')
+    .action(topCommand);
+
+
+
+// ── Bun ───────────────────────────────────────────────────────────────────────
+program
+    .command('bun [args...]')
+    .description('Run a Bun command inside the app container (Bun projects)')
+    .allowUnknownOption()
+    .action((args) => bunCommand(args || []));
+
+// ── PHP / Composer ─────────────────────────────────────────────────────────────
+program
+    .command('composer [args...]')
+    .description('Run a Composer command inside the app container (PHP projects)')
+    .allowUnknownOption()
+    .action((args) => composerCommand(args || []));
+
+program
+    .command('php [args...]')
+    .description('Run the PHP binary inside the app container')
+    .allowUnknownOption()
+    .action((args) => phpCommand(args || []));
+
+program
+    .command('artisan [args...]')
+    .description('Shortcut: shiplet php artisan — run Artisan commands (Laravel)')
+    .allowUnknownOption()
+    .action((args) => artisanCommand(args || []));
+
+program
+    .command('wp [args...]')
+    .description('Shortcut: shiplet php wp — run WP-CLI commands (WordPress)')
+    .allowUnknownOption()
+    .action((args) => wpCommand(args || []));
+
+program
+    .command('console [args...]')
+    .description('Shortcut: shiplet php bin/console — run Symfony console commands')
+    .allowUnknownOption()
+    .action((args) => consoleCommand(args || []));
 
 program.parse(process.argv);

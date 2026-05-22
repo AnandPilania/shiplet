@@ -33,7 +33,7 @@ app.get('/health', async (req, res) => {
         runtime: 'docker',
         services: { postgres: dbOk, redis: rdOk },
         uptime: process.uptime(),
-        version: process.env.npm_package_version || '1.0.0',
+        version: process.env.npm_package_version || '0.2.1',
     });
 });
 

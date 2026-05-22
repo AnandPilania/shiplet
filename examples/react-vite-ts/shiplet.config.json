@@ -1,0 +1,9 @@
+{
+    "language": "vite",
+    "runtime": "docker",
+    "appName": "shiplet-react-vite",
+    "template": "react-swc-ts",
+    "nodeVersion": "22",
+    "packageManager": "pnpm",
+    "port": 5173
+}

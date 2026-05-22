@@ -5,15 +5,15 @@ const { assertRuntime, runCompose, findProjectRoot, header, info, success, print
 
 module.exports = async function upCommand(options) {
     const root = findProjectRoot();
-    assertRuntime(root);
-
-    header('Starting Shiplet');
-    printRuntimeBadge(root);
-
     if (!root) {
         console.error(chalk.red('\n✖  No shiplet.yml found. Run `shiplet init` first.\n'));
         process.exit(1);
     }
+
+    assertRuntime(root);
+
+    header('Starting Shiplet');
+    printRuntimeBadge(root);
 
     const args = ['up'];
     if (options.detach) args.push('-d');

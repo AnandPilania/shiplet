@@ -14,7 +14,7 @@ const { spawn } = require('child_process');
 const chalk = require('chalk');
 const {
     assertRuntime, findProjectRoot, resolveComposeFile,
-    getComposeCmd, header, info, warn,
+    getComposeCmd, header, info, warn, error, success,
 } = require('../utils/helpers');
 
 function hasConfig(root, files) {
@@ -49,7 +49,7 @@ function detectLinters(root) {
 
 module.exports = async function lintCommand(options) {
     const root = findProjectRoot();
-    if (!root) { require('../utils/helpers').error('No shiplet project found.', 1); }
+    if (!root) { error('No shiplet project found.', 1); }
 
     const runtime = assertRuntime(root);
     const composeFile = resolveComposeFile(root);
@@ -102,9 +102,9 @@ module.exports = async function lintCommand(options) {
 
     console.log('');
     if (allPassed) {
-        require('../utils/helpers').success('All linters passed.');
+        success('All linters passed.');
     } else {
-        require('../utils/helpers').error('Some linters failed. Run `shiplet lint --fix` to auto-fix where possible.');
+        error('Some linters failed. Run `shiplet lint --fix` to auto-fix where possible.');
         process.exit(1);
     }
 };

@@ -2,7 +2,10 @@
 
 const { spawn } = require('child_process');
 const chalk = require('chalk');
-const { assertDocker, findProjectRoot, resolveComposeFile, getRunningServices, header, info } = require('../utils/helpers');
+const {
+    assertRuntime, findProjectRoot, resolveComposeFile,
+    getComposeCmd, getRunningServices, header, info,
+} = require('../utils/helpers');
 
 const DB_CONFIGS = {
     postgres: { cmd: ['psql', '-U', '${POSTGRES_USER:-postgres}', '${POSTGRES_DB:-app}'], label: 'PostgreSQL' },
@@ -13,10 +16,11 @@ const DB_CONFIGS = {
 };
 
 module.exports = function dbCommand(service) {
-    assertDocker();
     const root = findProjectRoot();
     if (!root) { console.error(chalk.red('\n✖  No shiplet.yml found.\n')); process.exit(1); }
 
+    const runtime = assertRuntime(root);
+    const [bin, ...baseCompose] = getComposeCmd(runtime);
     const running = getRunningServices(root);
 
     // Auto-detect if no service provided
@@ -42,11 +46,11 @@ module.exports = function dbCommand(service) {
     info(`Connecting to ${chalk.cyan(target)}…\n`);
 
     const composeFile = resolveComposeFile(root);
-    const baseArgs = composeFile ? ['-f', composeFile] : [];
+    const fileFlag = composeFile ? ['-f', composeFile] : [];
 
     const proc = spawn(
-        'docker',
-        ['compose', ...baseArgs, 'exec', '-it', target, 'sh', '-c', cfg.cmd.join(' ')],
+        bin,
+        [...baseCompose, ...fileFlag, 'exec', '-it', target, 'sh', '-c', cfg.cmd.join(' ')],
         { cwd: root, stdio: 'inherit' }
     );
 

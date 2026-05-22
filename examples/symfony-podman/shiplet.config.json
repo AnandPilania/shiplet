@@ -1,0 +1,9 @@
+{
+    "language": "php",
+    "runtime": "podman",
+    "appName": "shiplet-symfony",
+    "phpVersion": "8.2",
+    "template": "symfony",
+    "webServer": "nginx",
+    "port": 80
+}
