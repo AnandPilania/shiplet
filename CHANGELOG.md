@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.2] — 2026-05-22
+
+### 📌 Other
+
+- Fix typos in README commands
+
+
 ## [0.2.1] — 2026-05-22
 
 ### 🔨 Chores

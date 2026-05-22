@@ -1,6 +1,6 @@
 {
   "name": "shiplet",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "description": "Docker/Podman-powered dev environment CLI for Node.js — with release pipeline, snapshots, health dashboard, and more.",
   "main": "src/index.js",
   "bin": {
